@@ -106,11 +106,12 @@
   button.chip { cursor: pointer; }
   button.chip:active { transform: scale(.96); }
 
-  /* 底部導覽列（右側預留 225px 避開 Netlify 浮動標籤） */
+  /* 底部導覽列（GitHub Pages 滿版對齊；若在 Netlify 則自動預留右側空間避開浮動標籤） */
   footer {
-    display: flex; align-items: center; gap: 10px; padding: 0 225px 0 12px;
+    display: flex; align-items: center; gap: 10px; padding: 0 16px;
     background: #f4f8fc; border-top: 2px solid #c5d7ea; min-width: 0;
   }
+  body.on-netlify footer { padding-right: 225px; }
   .btn {
     min-height: 48px; min-width: 108px; padding: 0 18px; font-size: 18px; font-weight: 900;
     border: none; border-radius: 14px; cursor: pointer; color: #fff; background: #2b547e;
@@ -1904,6 +1905,7 @@ $('btnMenu').addEventListener('click', openModal);
 $('btnCloseModal').addEventListener('click', closeModal);
 $('btnReset').addEventListener('click', () => { if (confirm('要從頭開始嗎？目前的進度和星星會清掉喔。')) resetAll(); });
 
+if (location.hostname.includes('netlify')) document.body.classList.add('on-netlify');
 go(Math.min(S.idx, STEPS.length - 1));
 </script>
 </body>
