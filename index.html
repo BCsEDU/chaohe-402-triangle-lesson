@@ -1045,6 +1045,299 @@ function isoRotateClarify() {
   };
 }
 
+// 5c) 課本 P.75 動動腦：長方形紙對摺、沿虛線剪下、打開變成什麼三角形（3 步驟互動動畫）
+function origamiCutStep() {
+  return ctx => {
+    const svg = mkSvg('0 0 760 470');
+    ctx.stage.append(svg);
+    const hd = hud(ctx);
+
+    // 狀態：stage = 0(未對摺), 1(已對摺), 2(已剪開), 3(已打開)
+    let stage = 0;
+    let anim = false;
+    let foldP = 0, cutP = 0, openP = 0;
+
+    // 幾何座標：完整長方形 x: 200..560 (寬 360), y: 88..378 (高 290), 對摺線 fx = 380
+    const fx = 380, xL = 200, xR = 560, yT = 88, yB = 378;
+    // 剪裁斜虛線：從對摺線上方 P_top(380, 120) 到下邊 P_botR(515, 378)；展開後左邊對應點 P_botL(245, 378)
+    const Pt = { x: 380, y: 120 }, PbR = { x: 515, y: 378 }, PbL = { x: 245, y: 378 };
+
+    const draw = () => {
+      let h = '';
+      // 頂部階段說明膠囊
+      const stepTitles = [
+        '步驟 0：準備一張長方形色紙，中間是對摺線',
+        '步驟 ①：把色紙對摺成兩層，準備沿著斜虛線剪一刀',
+        '步驟 ②：沿著虛線剪下一刀，留下這塊雙層小三角形',
+        '步驟 ③：把剪下的那塊打開 ➜ 兩條剪開的斜邊一樣長，是「等腰三角形」！（點下方可重播）'
+      ];
+      h += `<rect x="70" y="14" width="620" height="44" rx="12" fill="${stage===3?'#1e3a5f':'#e6eff8'}" stroke="${stage===3?'#0f294a':'#b8cfe6'}" stroke-width="2"/>`;
+      h += `<text x="380" y="42" font-size="19" font-weight="900" fill="${stage===3?'#fde047':'#1e3a5f'}" text-anchor="middle">${stepTitles[stage]}</text>`;
+
+      if (stage === 0 || (stage === 1 && anim)) {
+        // 步驟 0 -> 1：左半邊 (200..380) 往右對摺到右半邊 (380..560)
+        // 左半邊原本位置留下虛線框
+        h += `<rect x="${xL}" y="${yT}" width="${fx-xL}" height="${yB-yT}" fill="none" stroke="#94a3b8" stroke-width="3" stroke-dasharray="9 7" rx="4"/>`;
+        if (foldP > 0.25) {
+          h += `<text x="${(xL+fx)/2}" y="${(yT+yB)/2 - 8}" font-size="18" font-weight="800" fill="#64748b" text-anchor="middle">原本位置</text>`;
+          h += `<text x="${(xL+fx)/2}" y="${(yT+yB)/2 + 18}" font-size="16" font-weight="800" fill="#94a3b8" text-anchor="middle">（已對摺過去）</text>`;
+        }
+        // 右半邊底層色紙
+        h += `<rect x="${fx}" y="${yT}" width="${xR-fx}" height="${yB-yT}" fill="#fed7aa" stroke="#ea580c" stroke-width="3.5" rx="4"/>`;
+        // 正在翻摺的左半邊色紙（繞 x = fx 翻轉：sx 從 1 到 -1）
+        const sx = 1 - 2 * foldP;
+        h += `<g transform="translate(${fx},0) scale(${sx},1) translate(${-fx},0)">`;
+        h += `<rect x="${xL}" y="${yT}" width="${fx-xL}" height="${yB-yT}" fill="${foldP>0.5?'#fdba74':'#fed7aa'}" stroke="#ea580c" stroke-width="3.5" rx="4"/>`;
+        h += `</g>`;
+        // 對摺線（紅虛線）
+        h += `<line x1="${fx}" y1="${yT-10}" x2="${fx}" y2="${yB+10}" stroke="#dc2626" stroke-width="4" stroke-dasharray="8 6"/>`;
+        h += `<text x="${fx}" y="${yB+34}" font-size="18" font-weight="900" fill="#dc2626" text-anchor="middle">對摺線（摺痕）</text>`;
+
+        if (stage === 0 && !anim) {
+          // 畫出彎曲對摺方向箭頭（模仿課本 P.75 圖示）
+          h += `<path d="M 270 230 Q 380 155 475 225" fill="none" stroke="#dc2626" stroke-width="4.5" stroke-dasharray="7 5"/>`;
+          h += `<polygon points="482,230 464,228 473,213" fill="#dc2626"/>`;
+          h += `<text x="380" y="175" font-size="20" font-weight="900" fill="#dc2626" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="4">① 先把長方形紙對摺</text>`;
+        }
+      } else if (stage === 1 || (stage === 2 && anim)) {
+        // 已對摺完成，準備或正在沿斜虛線剪一刀
+        // 左半邊虛線遺留框
+        h += `<rect x="${xL}" y="${yT}" width="${fx-xL}" height="${yB-yT}" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-dasharray="8 7" rx="4"/>`;
+        h += `<text x="${(xL+fx)/2}" y="${(yT+yB)/2}" font-size="16" font-weight="800" fill="#94a3b8" text-anchor="middle">已對摺過去</text>`;
+
+        // 右半邊雙層色紙（分成「剪下的直角三角形塊」與「外圍多餘紙塊」）
+        const sepX = (!anim && stage === 2) ? 28 : 0;
+        const sepY = (!anim && stage === 2) ? -14 : 0;
+        const scrapOp = (!anim && stage === 2) ? 0.28 : 1;
+        // 外圍多餘紙塊
+        h += `<g transform="translate(${sepX},${sepY})" opacity="${scrapOp}">`;
+        h += `<polygon points="${fx},${yT} ${xR},${yT} ${xR},${yB} ${PbR.x},${PbR.y} ${Pt.x},${Pt.y}" fill="#fdba74" stroke="#ea580c" stroke-width="3.5" stroke-linejoin="round"/>`;
+        h += `</g>`;
+        // 欲剪下的雙層三角形塊（左邊在對摺線上）
+        h += `<polygon points="${Pt.x},${Pt.y} ${fx},${yB} ${PbR.x},${PbR.y}" fill="#fb923c" stroke="#c2410c" stroke-width="4" stroke-linejoin="round"/>`;
+
+        // 對摺線（左側垂直邊）
+        h += `<line x1="${fx}" y1="${yT-10}" x2="${fx}" y2="${yB+10}" stroke="#dc2626" stroke-width="4" stroke-dasharray="8 6"/>`;
+        h += `<text x="${fx}" y="${yB+34}" font-size="18" font-weight="900" fill="#dc2626" text-anchor="middle">對摺線（兩層紙疊在一起）</text>`;
+
+        // 斜向剪裁虛線
+        h += `<line x1="${Pt.x}" y1="${Pt.y}" x2="${PbR.x}" y2="${PbR.y}" stroke="#0f172a" stroke-width="4" stroke-dasharray="9 7"/>`;
+        // 已剪過的實線軌跡
+        if (cutP > 0) {
+          const cx = PbR.x + (Pt.x - PbR.x) * cutP;
+          const cy = PbR.y + (Pt.y - PbR.y) * cutP;
+          h += `<line x1="${PbR.x}" y1="${PbR.y}" x2="${cx}" y2="${cy}" stroke="#ffffff" stroke-width="6"/>`;
+          h += `<line x1="${PbR.x}" y1="${PbR.y}" x2="${cx}" y2="${cy}" stroke="#dc2626" stroke-width="3.5"/>`;
+          // 小剪刀位置
+          h += `<text x="${cx + 14}" y="${cy + 8}" font-size="34" text-anchor="middle" dominant-baseline="central">✂️</text>`;
+        } else {
+          h += `<text x="${PbR.x + 18}" y="${PbR.y + 6}" font-size="34" text-anchor="middle" dominant-baseline="central">✂️</text>`;
+          h += `<text x="${(Pt.x+PbR.x)/2 + 78}" y="${(Pt.y+PbR.y)/2}" font-size="20" font-weight="900" fill="#0f172a" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="4">👈 沿虛線剪一刀</text>`;
+        }
+      } else if (stage === 2 || stage === 3) {
+        // 步驟 2 完成或步驟 3（把剪下的雙層三角形打開！）
+        // 淡淡顯示剛剛剪掉的外框供空間參照
+        h += `<g transform="translate(34,-16)" opacity="0.18">`;
+        h += `<polygon points="${fx},${yT} ${xR},${yT} ${xR},${yB} ${PbR.x},${PbR.y} ${Pt.x},${Pt.y}" fill="#fdba74" stroke="#ea580c" stroke-width="2.5" stroke-dasharray="6 5" stroke-linejoin="round"/>`;
+        h += `<text x="${xR-48}" y="${yT+36}" font-size="16" font-weight="800" fill="#9a3412" text-anchor="middle">剪下的剩餘紙</text>`;
+        h += `</g>`;
+
+        // 底層（右半邊直角三角形：Pt - (fx,yB) - PbR）
+        h += `<polygon points="${Pt.x},${Pt.y} ${fx},${yB} ${PbR.x},${PbR.y}" fill="#fed7aa" stroke="#ea580c" stroke-width="4" stroke-linejoin="round"/>`;
+
+        // 上層（從右半邊繞對摺線 fx 往左翻開：sx = 1 - 2 * openP，當 openP=1 時 sx=-1 完美展開到左半邊 PbL！）
+        const sx = 1 - 2 * openP;
+        h += `<g transform="translate(${fx},0) scale(${sx},1) translate(${-fx},0)">`;
+        h += `<polygon points="${Pt.x},${Pt.y} ${fx},${yB} ${PbR.x},${PbR.y}" fill="${openP>0.5?'#fed7aa':'#fb923c'}" stroke="#ea580c" stroke-width="4" stroke-linejoin="round"/>`;
+        h += `</g>`;
+
+        // 中間對摺線（摺痕）
+        h += `<line x1="${Pt.x}" y1="${Pt.y-12}" x2="${fx}" y2="${yB+14}" stroke="#dc2626" stroke-width="3.5" stroke-dasharray="8 6"/>`;
+
+        if (stage === 3 && !anim) {
+          // 展開完成！標示兩條一樣長的腰（綠色粗線 + 等長記號）與兩個一樣大的底角
+          const pts = [Pt, PbL, PbR];
+          const uL1 = unit(sub(Pt, PbL)), uL2 = unit(sub(PbR, PbL));
+          const uR1 = unit(sub(PbL, PbR)), uR2 = unit(sub(Pt, PbR));
+          h += `<path d="${wedge(PbL, uL2, uL1, 46)}" fill="rgba(79,70,229,.35)" stroke="#4338ca" stroke-width="3"/>`;
+          h += `<path d="${wedge(PbR, uR2, uR1, 46)}" fill="rgba(79,70,229,.35)" stroke="#4338ca" stroke-width="3"/>`;
+
+          // 兩條剪開的斜邊（腰）高亮為鮮明綠色
+          h += `<line x1="${Pt.x}" y1="${Pt.y}" x2="${PbL.x}" y2="${PbL.y}" stroke="${COL.green}" stroke-width="11" stroke-linecap="round"/>`;
+          h += `<line x1="${Pt.x}" y1="${Pt.y}" x2="${PbR.x}" y2="${PbR.y}" stroke="${COL.green}" stroke-width="11" stroke-linecap="round"/>`;
+          // 底邊高亮為鮮明藍色
+          h += `<line x1="${PbL.x}" y1="${PbL.y}" x2="${PbR.x}" y2="${PbR.y}" stroke="${COL.cyan}" stroke-width="9" stroke-linecap="round"/>`;
+
+          // 兩腰上的等長記號（雙短線）
+          [[Pt, PbL], [Pt, PbR]].forEach(([A, B]) => {
+            const m = mid(A, B), d = unit(sub(B, A)), n = { x: -d.y, y: d.x };
+            [-5, 5].forEach(off => {
+              const c = add(m, mul(d, off));
+              h += `<line x1="${c.x - n.x*13}" y1="${c.y - n.y*13}" x2="${c.x + n.x*13}" y2="${c.y + n.y*13}" stroke="#0f172a" stroke-width="4" stroke-linecap="round"/>`;
+            });
+          });
+
+          // 文字標示
+          h += `<text x="${(Pt.x+PbL.x)/2 - 68}" y="${(Pt.y+PbL.y)/2}" font-size="22" font-weight="900" fill="#15803d" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="4">腰（剪開的邊）</text>`;
+          h += `<text x="${(Pt.x+PbR.x)/2 + 68}" y="${(Pt.y+PbR.y)/2}" font-size="22" font-weight="900" fill="#15803d" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="4">腰（剪開的邊）</text>`;
+          h += `<text x="${fx}" y="${yB+38}" font-size="20" font-weight="900" fill="#0369a1" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="4">底邊（兩條腰一樣長 ➜ 等腰三角形！）</text>`;
+          h += `<text x="${PbL.x+42}" y="${PbL.y-14}" font-size="18" font-weight="900" fill="#4338ca" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="3.5">底角</text>`;
+          h += `<text x="${PbR.x-42}" y="${PbR.y-14}" font-size="18" font-weight="900" fill="#4338ca" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="3.5">底角</text>`;
+        } else {
+          // 步驟 2 提示打開箭頭
+          h += `<path d="M 435 280 Q 380 215 305 280" fill="none" stroke="#1d4ed8" stroke-width="4" stroke-dasharray="7 5"/>`;
+          h += `<polygon points="298,285 316,283 307,268" fill="#1d4ed8"/>`;
+          h += `<text x="380" y="232" font-size="20" font-weight="900" fill="#1e40af" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="4">③ 點擊把剪下的三角形打開！</text>`;
+        }
+      }
+      svg.innerHTML = h;
+    };
+
+    const runAnim = (fromStage, duration, onProgress, onDone) => {
+      if (anim) return;
+      anim = true;
+      stage = fromStage;
+      const t0 = performance.now();
+      const frame = now => {
+        const p = Math.min(1, (now - t0) / duration);
+        // easeInOutCubic
+        const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+        onProgress(ease);
+        draw();
+        if (p < 1) requestAnimationFrame(frame);
+        else { anim = false; onDone(); draw(); renderHud(); }
+      };
+      requestAnimationFrame(frame);
+    };
+
+    const doStep1 = () => {
+      sTap();
+      foldP = 0; cutP = 0; openP = 0;
+      runAnim(1, 950, p => { foldP = p; }, () => {
+        foldP = 1; stage = 1;
+        ctx.say(`<h2>步驟 ①：色紙對摺好了！</h2><p>長方形色紙已經對摺成兩層疊在一起了！現在請按下方<em>「✂️ 2. 沿虛線剪下」</em>，把斜虛線那一刀剪開吧！</p>`);
+      });
+    };
+
+    const doStep2 = () => {
+      sTap();
+      foldP = 1; cutP = 0; openP = 0;
+      runAnim(2, 950, p => { cutP = p; }, () => {
+        cutP = 1; stage = 2;
+        ctx.say(`<h2>步驟 ②：沿虛線剪開了！</h2><p>我們沿著斜虛線剪下了一塊雙層小三角形。想想看，把它打開後會變成什麼三角形呢？快按<em>「✨ 3. 把紙打開」</em>看看！</p>`);
+      });
+    };
+
+    const doStep3 = () => {
+      sTap();
+      foldP = 1; cutP = 1; openP = 0;
+      runAnim(3, 1050, p => { openP = p; }, () => {
+        openP = 1; stage = 3; sOk();
+        ctx.say(`<h2>發現了！是等腰三角形！</h2><p>對摺時兩層紙疊在一起，和虛線重疊的邊也跟虛線<em>一樣長</em>。展開後就有<u>兩條一樣長的腰</u>，所以一定會變成<em>等腰三角形</em>！</p>`);
+        ctx.unlock();
+      });
+    };
+
+    const renderHud = () => {
+      hd.innerHTML = `
+        <button class="chip ${stage>=1?'ok':''}" id="bFold" ${anim?'disabled':''}>${stage>=1?'✅':'👆'} 📖 1. 把色紙對摺</button>
+        <button class="chip ${stage>=2?'ok':''}" id="bCut" ${anim || stage<1?'disabled style="opacity:.45"':''}>${stage>=2?'✅':'👆'} ✂️ 2. 沿虛線剪下</button>
+        <button class="chip ${stage>=3?'ok':''}" id="bOpen" ${anim || stage<2?'disabled style="opacity:.45"':''}>${stage>=3?'✅':'👆'} ✨ 3. 把紙打開</button>
+        ${stage===3 ? `<button class="chip" id="bReplay" ${anim?'disabled':''}>🔄 從頭再看一次</button>` : ''}
+      `;
+      $('bFold')?.addEventListener('click', doStep1);
+      $('bCut')?.addEventListener('click', doStep2);
+      $('bOpen')?.addEventListener('click', doStep3);
+      $('bReplay')?.addEventListener('click', () => {
+        sTap(); stage = 0; foldP = 0; cutP = 0; openP = 0; draw(); renderHud();
+      });
+
+      if (stage === 0) ctx.task('請按下方「📖 1. 把色紙對摺」開始實驗（0/3）');
+      else if (stage === 1) ctx.task('接著按「✂️ 2. 沿虛線剪下」（1/3）');
+      else if (stage === 2) ctx.task('最後按「✨ 3. 把紙打開」看看變成什麼三角形！（2/3）');
+      else ctx.task('🎉 實驗完成！打開後是「等腰三角形」，按「下一步」挑戰類題', true);
+    };
+
+    draw();
+    renderHud();
+  };
+}
+
+// 5d) 課本 P.75 動動腦類題：對摺剪紙的邊長與三角形種類推理
+function origamiQuizStep() {
+  return ctx => {
+    const wrap = document.createElement('div');
+    wrap.className = 'quiz';
+
+    // 繪製左方圖示：上方為對摺剪 8 cm 虛線，下方為展開後一邊 8 cm、底邊 6 cm、另一邊 ？ cm
+    const svg = `
+      <svg viewBox="0 0 280 250" preserveAspectRatio="xMidYMid meet">
+        <!-- 左半：對摺後剪一刀 -->
+        <rect x="18" y="20" width="82" height="96" fill="#fed7aa" stroke="#ea580c" stroke-width="2.5" rx="3"/>
+        <polygon points="18,32 18,116 80,116" fill="#fb923c" stroke="#c2410c" stroke-width="2.5"/>
+        <line x1="18" y1="14" x2="18" y2="122" stroke="#dc2626" stroke-width="3" stroke-dasharray="5 4"/>
+        <line x1="18" y1="32" x2="80" y2="116" stroke="#0f172a" stroke-width="3" stroke-dasharray="5 4"/>
+        <text x="58" y="68" font-size="14" font-weight="900" fill="#0f172a" paint-order="stroke" stroke="#fff" stroke-width="3">8 cm ✂️</text>
+        <text x="58" y="136" font-size="13" font-weight="800" fill="#475569" text-anchor="middle">① 對摺剪 8 cm</text>
+
+        <!-- 箭頭 -->
+        <text x="122" y="76" font-size="22" font-weight="900" fill="#1e3a5f" text-anchor="middle">➜</text>
+
+        <!-- 右半：展開後的三角形 -->
+        <polygon points="205,28 150,116 260,116" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+        <line x1="205" y1="28" x2="205" y2="116" stroke="#dc2626" stroke-width="2.5" stroke-dasharray="5 4"/>
+        <line x1="205" y1="28" x2="150" y2="116" stroke="${COL.green}" stroke-width="5" stroke-linecap="round"/>
+        <line x1="205" y1="28" x2="260" y2="116" stroke="${COL.green}" stroke-width="5" stroke-linecap="round"/>
+        <line x1="150" y1="116" x2="260" y2="116" stroke="${COL.cyan}" stroke-width="5" stroke-linecap="round"/>
+        <text x="163" y="68" font-size="15" font-weight="900" fill="#15803d" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="3.5">8 cm</text>
+        <text x="248" y="68" font-size="16" font-weight="900" fill="#dc2626" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="3.5">？ cm</text>
+        <text x="205" y="136" font-size="15" font-weight="900" fill="#0369a1" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="3.5">底邊 6 cm</text>
+
+        <!-- 下方重點提示小框 -->
+        <rect x="12" y="158" width="256" height="76" rx="12" fill="#f2f7fc" stroke="#bfd4ea" stroke-width="2"/>
+        <text x="140" y="184" font-size="15" font-weight="900" fill="#1e3a5f" text-anchor="middle">💡 觀察剪開的虛線：</text>
+        <text x="140" y="206" font-size="14" font-weight="800" fill="#334155" text-anchor="middle">對摺時兩層紙重疊在一起，</text>
+        <text x="140" y="224" font-size="14" font-weight="800" fill="#334155" text-anchor="middle">剪一刀展開後，兩條斜邊會多長？</text>
+      </svg>
+    `;
+
+    wrap.innerHTML = `<div class="qcard">${svg}</div>
+      <div class="q-main">
+        <div class="q-text">【動動腦類題】小華拿一張長方形紙對摺後，沿著長 8 cm 的斜虛線剪下一刀。把剪下的那塊打開後，底邊長 6 cm，請問另一條斜邊（？ cm）有多長？它是什麼三角形？</div>
+        <div id="opts" style="display:flex;flex-direction:column;gap:8px"></div>
+        <div class="explain" id="ex">
+          💡 <b>類題解析：</b>因為長方形紙對摺時兩層紙疊在一起，沿著 <b>8 cm</b> 的虛線剪下去，展開後的兩條斜邊原本重疊，所以<b>另一條斜邊也是 8 cm</b>！三條邊是 <b>8 cm、8 cm、6 cm</b>，有 2 條邊一樣長，所以是<b>等腰三角形</b>！
+        </div>
+      </div>`;
+    ctx.stage.append(wrap);
+    const box = wrap.querySelector('#opts');
+    const opts = [
+      ['另一條斜邊也是 8 cm，打開後是「等腰三角形」', true, ''],
+      ['另一條斜邊是 6 cm，打開後是「正三角形」', false, '⚠️ 再想一想：對摺時，另一條斜邊是跟「8 cm 的虛線」疊在一起剪開的，不是跟底邊 6 cm 疊在一起喔！'],
+      ['另一條斜邊是 7 cm，打開後是「不等邊三角形」', false, '⚠️ 再想一想：兩層紙對摺重疊在一起剪同一刀，剪出來的兩條斜邊長度一定會完全一樣喔！']
+    ];
+    let wrong = 0, solved = false;
+    opts.forEach(([t, ok, customHint]) => {
+      const b = document.createElement('button'); b.className = 'opt'; b.textContent = t;
+      b.addEventListener('click', () => {
+        if (solved) return;
+        if (ok) {
+          solved = true; b.classList.add('ok'); sOk();
+          wrap.querySelector('#ex').classList.add('show');
+          if (wrong === 0 && !S.star[ctx.id]) { S.star[ctx.id] = 1; S.stars++; save(); renderTop(); }
+          ctx.unlock(); ctx.task('🎉 答對了！按「下一步」進入以角分類', true);
+        } else {
+          wrong++; b.classList.remove('no'); void b.offsetWidth; b.classList.add('no'); sNo();
+          ctx.task(customHint);
+          ctx.say(`<h2>再觀察一下！</h2><p>對摺時兩層紙疊在一起，沿著 <em>8 cm</em> 的虛線剪一刀，展開後的兩條斜邊原本是<u>重疊在一起</u>的，所以長度都會是幾公分呢？</p>`);
+        }
+      });
+      box.append(b);
+    });
+    ctx.task('想想看：對摺後沿 8 cm 虛線剪開，展開後的另一條斜邊是幾公分？');
+  };
+}
+
 // 6) 角的大小（拖曳旋轉把：零 DOM 重建、60fps 絲滑跟手）
 function angleSlider() {
   return ctx => {
@@ -1680,6 +1973,8 @@ add_(1, 's-summary', `<h2>整理一下</h2><p>用「邊長」來分類，三角�
   ctx.stage.append(w); ctx.unlock(); ctx.task('記好了嗎？按「下一步」玩遊戲', true);
 });
 add_(1, 's-sort', `<h2>分類遊戲：以邊分類</h2><p>請把上方的 8 張三角形圖卡<em>拖進</em>正確的分類籃子裡，圖卡上的顏色和等長記號可以幫你判斷喔！</p>`, sortGame('side'));
+add_(1, 's-origami-cut', `<h2>課本 75 頁動動腦：對摺剪紙實驗</h2><p>拿一張長方形紙<em>對摺</em>，再沿著<em>虛線剪下</em>。剪下的那一塊打開後會變成什麼三角形？為什麼？請點下方按鈕動手試試看！</p>`, origamiCutStep());
+add_(1, 's-origami-quiz', `<h2>動動腦類題挑戰</h2><p>剛剛我們發現對摺後沿虛線剪一刀，展開後兩條斜邊一定一樣長。現在來挑戰看看這道類題吧！</p>`, origamiQuizStep());
 
 /* ---- 第 2 部分：以角分類 ---- */
 add_(2, 'a-slider', `<h2>認識角的大小</h2><p>三角形的角有大有小。請拖動右邊的<em>藍色圓點</em>把角開大開小，找出<u>銳角、直角、鈍角</u>三種角！</p>`, angleSlider());
