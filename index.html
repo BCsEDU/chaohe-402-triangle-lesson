@@ -1546,8 +1546,11 @@ function rightCheck(key, finalSay) {
       const innerD = `M${pInR.x.toFixed(1)},${pInR.y.toFixed(1)} A${rIn},${rIn} 0 0 ${sweep} ${p90In.x.toFixed(1)},${p90In.y.toFixed(1)} A${rIn},${rIn} 0 0 ${sweep} ${pInL.x.toFixed(1)},${pInL.y.toFixed(1)} Z`;
       g += `<path d="${outerD}" fill="rgba(254,249,195,.76)" stroke="#0284c7" stroke-width="3"/>`;
       g += `<path d="${innerD}" fill="rgba(255,255,255,.55)" stroke="#38bdf8" stroke-width="1.8"/>`;
-      // 0°–180° 底線與 90° 直角基準虛線
-      g += `<line x1="${pL.x}" y1="${pL.y}" x2="${pR.x}" y2="${pR.y}" stroke="#0369a1" stroke-width="2.5"/>`;
+      // 180°–0° 底線與 90° 直角基準虛線（0° 零度線用鮮明翠綠色標記，與紅線指針、紫虛線直角區隔）
+      g += `<line x1="${pL.x}" y1="${pL.y}" x2="${p.x}" y2="${p.y}" stroke="#0369a1" stroke-width="2.5"/>`;
+      g += `<line x1="${p.x}" y1="${p.y}" x2="${pR.x}" y2="${pR.y}" stroke="#ffffff" stroke-width="10" stroke-linecap="round"/>`;
+      g += `<line x1="${p.x}" y1="${p.y}" x2="${pR.x}" y2="${pR.y}" stroke="#16a34a" stroke-width="6" stroke-linecap="round"/>`;
+      g += `<circle cx="${pR.x.toFixed(1)}" cy="${pR.y.toFixed(1)}" r="7.5" fill="#16a34a" stroke="#ffffff" stroke-width="2.5"/>`;
       g += `<line x1="${p.x}" y1="${p.y}" x2="${p90.x}" y2="${p90.y}" stroke="#7c3aed" stroke-width="3" stroke-dasharray="6 5"/>`;
 
       // 刻度線與正向數字（每 10° 一格，每 30° 標示度數）
@@ -1557,10 +1560,12 @@ function rightCheck(key, finalSay) {
         const major = d % 30 === 0;
         const pOut = mapPt(R * c, R * s);
         const pTick = mapPt((R - (major ? 14 : 8)) * c, (R - (major ? 14 : 8)) * s);
-        g += `<line x1="${pOut.x.toFixed(1)}" y1="${pOut.y.toFixed(1)}" x2="${pTick.x.toFixed(1)}" y2="${pTick.y.toFixed(1)}" stroke="${d===90?'#7c3aed':'#0f172a'}" stroke-width="${d===90?3:major?2.2:1.3}"/>`;
+        const tickCol = d === 0 ? '#15803d' : d === 90 ? '#7c3aed' : '#0f172a';
+        g += `<line x1="${pOut.x.toFixed(1)}" y1="${pOut.y.toFixed(1)}" x2="${pTick.x.toFixed(1)}" y2="${pTick.y.toFixed(1)}" stroke="${tickCol}" stroke-width="${(d===0||d===90)?3:major?2.2:1.3}"/>`;
         if (major) {
           const pTxt = mapPt((R - 27) * c, (R - 27) * s);
-          g += `<text x="${pTxt.x.toFixed(1)}" y="${pTxt.y.toFixed(1)}" font-size="${d===90?14:11}" font-weight="900" fill="${d===90?'#6d28d9':'#1e293b'}" text-anchor="middle" dominant-baseline="central" paint-order="stroke" stroke="#fff" stroke-width="2.5">${d}°</text>`;
+          const txtCol = d === 0 ? '#15803d' : d === 90 ? '#6d28d9' : '#1e293b';
+          g += `<text x="${pTxt.x.toFixed(1)}" y="${pTxt.y.toFixed(1)}" font-size="${(d===0||d===90)?14:11}" font-weight="900" fill="${txtCol}" text-anchor="middle" dominant-baseline="central" paint-order="stroke" stroke="#fff" stroke-width="2.5">${d}°</text>`;
         }
       }
       // 中心準星
