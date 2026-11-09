@@ -212,6 +212,45 @@
   .gcard.placed { cursor: default; border-color: #4a78a8; background: #ffffff; width: 76px; height: 74px; }
   .gcard.back { animation: shake .35s; }
 
+  /* 課本同款分類表格（左欄：分類、右欄：三角形編號） */
+  .tb-sort-table {
+    flex: 1; min-height: 0; display: grid;
+    grid-template-rows: 44px repeat(3, minmax(0, 1fr));
+    border: 2.5px solid #94a3b8; border-radius: 14px; overflow: hidden; background: #ffffff;
+  }
+  .tb-sort-head {
+    display: grid; grid-template-columns: 250px 1fr;
+    background: #d8d2c5; border-bottom: 2px solid #94a3b8;
+    font-size: 20px; font-weight: 900; color: #1e293b;
+  }
+  .tb-sort-head > div {
+    display: flex; align-items: center; justify-content: center; padding: 4px 12px;
+  }
+  .tb-sort-head > div:first-child { border-right: 2px solid #94a3b8; }
+  .tb-sort-row {
+    display: grid; grid-template-columns: 250px 1fr;
+    border-bottom: 1.5px solid #cbd5e1; background: #fafaf9; min-height: 0;
+    transition: background .15s, box-shadow .15s;
+  }
+  .tb-sort-row:last-child { border-bottom: none; }
+  .tb-sort-row.over {
+    background: #e0f2fe !important;
+    box-shadow: inset 0 0 0 3px #0284c7;
+  }
+  .tb-sort-cat {
+    border-right: 2px solid #94a3b8; display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 900; color: #0f172a; padding: 6px 12px; text-align: center;
+    background: #f5f5f4;
+  }
+  .tb-sort-val {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: flex-start;
+    padding: 6px 16px; min-height: 0; overflow-y: auto; background: #ffffff;
+  }
+  .tb-sort-val .gcard.placed {
+    width: 82px; height: 70px; flex-direction: row; gap: 4px; padding: 4px 6px;
+  }
+  .tb-sort-val .gcard.placed svg { width: 48px; height: 42px; }
+
   /* 等腰直角三角形專頁、重點歸納、雙重身份探索（同色系深淺漸層區分區塊） */
   .isoright-stage { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.05fr 1fr; gap: 12px; padding: 10px 14px; align-items: stretch; }
   .ir-canvas { background: #ffffff; border: 2.5px solid #b8cfe6; border-radius: 18px; display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
@@ -1648,7 +1687,13 @@ function sortGame(mode) {
       ? [['equilateral','正三角形','3 條邊一樣長','#334155'], ['isosceles','等腰三角形','剛好 2 條邊一樣長','#334155'], ['scalene','不等邊三角形','3 條邊都不一樣長','#334155']]
       : [['acute','3 個都是銳角','3 個角都小於 90°','#334155'], ['right','1 個直角、2 個銳角','1 個角等於 90°、2 個角小於 90°','#334155'], ['obtuse','1 個鈍角、2 個銳角','1 個角大於 90°、2 個角小於 90°','#334155']];
     const wrap = document.createElement('div'); wrap.className = 'sortbox';
-    wrap.innerHTML = `<div class="pool" id="pool"></div><div class="baskets">${cfg.map(([k,t,d,c]) => `<div class="basket" data-k="${k}" style="border-color:${c}55"><h4 style="color:${c}">${t}</h4><p>${d}</p><div class="in"></div></div>`).join('')}</div>`;
+    const bodyHtml = mode === 'angle'
+      ? `<div class="tb-sort-table">
+          <div class="tb-sort-head"><div>分類</div><div>三角形編號</div></div>
+          ${cfg.map(([k,t]) => `<div class="tb-sort-row basket" data-k="${k}"><div class="tb-sort-cat">${t}</div><div class="tb-sort-val in"></div></div>`).join('')}
+        </div>`
+      : `<div class="baskets">${cfg.map(([k,t,d,c]) => `<div class="basket" data-k="${k}" style="border-color:${c}55"><h4 style="color:${c}">${t}</h4><p>${d}</p><div class="in"></div></div>`).join('')}</div>`;
+    wrap.innerHTML = `<div class="pool" id="pool"></div>${bodyHtml}`;
     ctx.stage.append(wrap);
     const pool = wrap.querySelector('#pool');
     const keys = mode === 'side' ? ['G','D','H','C','A','E','F','B'] : ['A','B','C','D','E','F','G','H'];
@@ -2020,50 +2065,20 @@ add_(2, 'a-check-H', `<h2>最後一張：圖卡 H</h2><p>最後輪到圖卡 <b>H
 add_(2, 'a-sort', `<h2>配合課本紀錄表：依角的組合分類</h2><p>剛剛我們量完圖卡 <b>A ～ H</b> 了！請按照課本表格的分類方式，把圖卡拖進<em>「3 個都是銳角」</em>、<em>「1 個直角、2 個銳角」</em>或<em>「1 個鈍角、2 個銳角」</em>的欄位裡！</p>`, sortGame('angle'));
 add_(2, 'a-c-types', `<h2>歸納整理：認識銳角、直角、鈍角三角形</h2><p>我們把 <u>3 個角都是銳角</u>的三角形，稱為<em>銳角三角形</em>；有 <u>1 個直角</u>的三角形，稱為<em>直角三角形</em>；有 <u>1 個鈍角</u>的三角形，稱為<em>鈍角三角形</em>。</p>`, ctx => {
   const w = document.createElement('div'); w.className = 'concept';
-  const miniList = keys => `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${keys.map(k => `<div style="display:inline-flex;align-items:center;gap:4px;background:#ffffff;border:1.5px solid #9fc0df;border-radius:10px;padding:3px 8px;font-weight:900;color:#1e3a5f">${cardSVG(k, 46, 34, { pad: 3, sw: 4, right: true, labelFs: 14 })}<span>${k}</span></div>`).join('')}</div>`;
-  w.innerHTML = `<h3>課本紀錄表與歸納：以角分類三角形</h3>
-  <div class="summary-list">
-    <div class="summary-row" style="grid-template-columns:195px 1fr 165px">
-      <div class="s-title" style="color:#1e3a5f;font-size:20px">3 個都是銳角</div>
-      <div>${miniList(['A','B','D','G'])}</div>
-      <div style="font-size:22px;font-weight:900;color:#7c3aed;text-align:right">➜ 銳角三角形</div>
-    </div>
-    <div class="summary-row" style="grid-template-columns:195px 1fr 165px">
-      <div class="s-title" style="color:#1e3a5f;font-size:20px">1 個直角、2 個銳角</div>
-      <div>${miniList(['C','F'])}</div>
-      <div style="font-size:22px;font-weight:900;color:#7c3aed;text-align:right">➜ 直角三角形</div>
-    </div>
-    <div class="summary-row" style="grid-template-columns:195px 1fr 165px">
-      <div class="s-title" style="color:#1e3a5f;font-size:20px">1 個鈍角、2 個銳角</div>
-      <div>${miniList(['E','H'])}</div>
-      <div style="font-size:22px;font-weight:900;color:#7c3aed;text-align:right">➜ 鈍角三角形</div>
-    </div>
+  const miniList = (keys, name) => `<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${keys.map(k => `<div style="display:inline-flex;align-items:center;gap:4px;background:#ffffff;border:1.5px solid #9fc0df;border-radius:10px;padding:3px 8px;font-weight:900;color:#1e3a5f">${cardSVG(k, 46, 34, { pad: 3, sw: 4, right: true, labelFs: 14 })}<span>圖卡 ${k}</span></div>`).join('')}</div><div style="font-size:21px;font-weight:900;color:#7c3aed;white-space:nowrap">➜ ${name}</div></div>`;
+  w.innerHTML = `<div class="tb-sort-table">
+    <div class="tb-sort-head"><div>分類</div><div>三角形編號</div></div>
+    <div class="tb-sort-row"><div class="tb-sort-cat">3 個都是銳角</div><div class="tb-sort-val">${miniList(['A','B','D','G'], '銳角三角形')}</div></div>
+    <div class="tb-sort-row"><div class="tb-sort-cat">1 個直角、2 個銳角</div><div class="tb-sort-val">${miniList(['C','F'], '直角三角形')}</div></div>
+    <div class="tb-sort-row"><div class="tb-sort-cat">1 個鈍角、2 個銳角</div><div class="tb-sort-val">${miniList(['E','H'], '鈍角三角形')}</div></div>
   </div>
-  <div class="facts" style="line-height:1.6">
-    📌 我們把 <b>3 個角都是銳角</b>的三角形，稱為<b style="color:#7c3aed">銳角三角形</b>（圖卡 A、B、D、G）；<br>
-    📌 有 <b>1 個直角</b>的三角形，稱為<b style="color:#7c3aed">直角三角形</b>（圖卡 C、F）；<br>
-    📌 有 <b>1 個鈍角</b>的三角形，稱為<b style="color:#7c3aed">鈍角三角形</b>（圖卡 E、H）。
+  <div class="facts" style="background:#fce7f3;border-color:#f9a8d4;color:#1e293b;line-height:1.6">
+    🔊 我們把 <b>3 個角都是銳角</b>的三角形，稱為<b style="color:#9333ea">銳角三角形</b>（A、B、D、G）；<br>
+    　 有 <b>1 個直角</b>的三角形，稱為<b style="color:#9333ea">直角三角形</b>（C、F）；<br>
+    　 有 <b>1 個鈍角</b>的三角形，稱為<b style="color:#9333ea">鈍角三角形</b>（E、H）。
   </div>`;
-  ctx.stage.append(w); ctx.unlock(); ctx.task('看懂歸納重點後，按「下一步」回答課本「說說看」！', true);
+  ctx.stage.append(w); ctx.unlock(); ctx.task('看懂課本表格與歸納重點後，按「下一步」！', true);
 });
-add_(2, 'a-q-say-1', `<h2>課本說說看 ①：哪些是銳角三角形？</h2><p>根據剛剛的歸納，「3 個角都是銳角」的三角形稱為<em>銳角三角形</em>。找找看 A ～ H 裡面哪些是銳角三角形？</p>`, quiz({
-  card: 'A', angleCmp: true,
-  q: '上面的三角形（A ～ H）中，哪些是「3 個角都是銳角」的銳角三角形？',
-  opts: [['圖卡 A、B、D、G', true], ['圖卡 C、F', false], ['圖卡 E、H', false]],
-  explain: '圖卡 <b>A、B、D、G</b> 的 3 個角都小於 90°（3 個都是銳角），所以都是<b>銳角三角形</b>！'
-}));
-add_(2, 'a-q-say-2', `<h2>課本說說看 ②：哪些是直角三角形？</h2><p>接著找找看，A ～ H 裡面哪些是有 1 個直角的<em>直角三角形</em>？</p>`, quiz({
-  card: 'C', right: true, angleCmp: true,
-  q: '上面的三角形（A ～ H）中，哪些是「有 1 個直角」的直角三角形？',
-  opts: [['圖卡 A、B、D、G', false], ['圖卡 C、F', true], ['圖卡 E、H', false]],
-  explain: '圖卡 <b>C、F</b> 都有 1 個等於 90° 的直角（和 2 個銳角），所以是<b>直角三角形</b>！'
-}));
-add_(2, 'a-q-say-3', `<h2>課本說說看 ③：哪些是鈍角三角形？</h2><p>再找找看，A ～ H 裡面哪些是有 1 個鈍角的<em>鈍角三角形</em>？</p>`, quiz({
-  card: 'E', angleCmp: true,
-  q: '上面的三角形（A ～ H）中，哪些是「有 1 個鈍角」的鈍角三角形？',
-  opts: [['圖卡 A、B、D、G', false], ['圖卡 C、F', false], ['圖卡 E、H', true]],
-  explain: '圖卡 <b>E、H</b> 都有 1 個大於 90° 的鈍角（和 2 個銳角），所以是<b>鈍角三角形</b>！'
-}));
 add_(2, 'a-q-max', `<h2>動動腦</h2><p>回想一下剛剛分類的結果，每個三角形都有至少 2 個銳角。想想看一個三角形裡面最多能有幾個鈍角？</p>`, quiz({
   q: '一個三角形裡，最多只能有幾個鈍角？',
   opts: [['最多 1 個', true], ['最多 2 個', false], ['可以有 3 個', false]],
