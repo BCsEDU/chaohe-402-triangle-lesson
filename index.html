@@ -1646,18 +1646,18 @@ function sortGame(mode) {
   return ctx => {
     const cfg = mode === 'side'
       ? [['equilateral','正三角形','3 條邊一樣長','#334155'], ['isosceles','等腰三角形','剛好 2 條邊一樣長','#334155'], ['scalene','不等邊三角形','3 條邊都不一樣長','#334155']]
-      : [['acute','銳角三角形','3 個角都比直角小','#334155'], ['right','直角三角形','有 1 個直角','#334155'], ['obtuse','鈍角三角形','有 1 個鈍角','#334155']];
+      : [['acute','3 個都是銳角','3 個角都小於 90°','#334155'], ['right','1 個直角、2 個銳角','1 個角等於 90°、2 個角小於 90°','#334155'], ['obtuse','1 個鈍角、2 個銳角','1 個角大於 90°、2 個角小於 90°','#334155']];
     const wrap = document.createElement('div'); wrap.className = 'sortbox';
     wrap.innerHTML = `<div class="pool" id="pool"></div><div class="baskets">${cfg.map(([k,t,d,c]) => `<div class="basket" data-k="${k}" style="border-color:${c}55"><h4 style="color:${c}">${t}</h4><p>${d}</p><div class="in"></div></div>`).join('')}</div>`;
     ctx.stage.append(wrap);
     const pool = wrap.querySelector('#pool');
-    const keys = ['G','D','H','C','A','E','F','B'];
+    const keys = mode === 'side' ? ['G','D','H','C','A','E','F','B'] : ['A','B','C','D','E','F','G','H'];
     let left = keys.length;
     const typeOf = k => mode === 'side' ? CARDS[k].sideType : CARDS[k].angleType;
-    ctx.task(`把圖卡拖進正確的籃子（還剩 ${left} 張）`);
+    ctx.task(`把圖卡拖進正確的分類欄（還剩 ${left} 張）`);
     keys.forEach(k => {
       const d = document.createElement('div'); d.className = 'gcard'; d.dataset.k = k;
-      d.innerHTML = cardSVG(k, 76, 56, { sw: 5, pad: 6 }) + `<span>圖卡 ${k}</span>`;
+      d.innerHTML = cardSVG(k, 76, 56, { sw: 5, pad: 6, right: mode === 'angle' }) + `<span>圖卡 ${k}</span>`;
       let dx = 0, dy = 0;
       drag(d, {
         down: e => {
@@ -1679,16 +1679,16 @@ function sortGame(mode) {
           if (tgt.dataset.k === typeOf(k)) {
             d.classList.add('placed'); tgt.querySelector('.in').append(d); sOk(); left--;
             if (left === 0) { ctx.task('🎉 全部分對了！按「下一步」', true); ctx.unlock(); ctx.say(mode === 'side' ? SAY.sortSideDone : SAY.sortAngleDone); }
-            else ctx.task(`把圖卡拖進正確的籃子（還剩 ${left} 張）`);
+            else ctx.task(`把圖卡拖進正確的分類欄（還剩 ${left} 張）`);
           } else {
             sNo(); d.classList.remove('back'); void d.offsetWidth; d.classList.add('back');
             const c = CARDS[k];
-            const angDesc = c.angleType === 'right' ? '有 1 個角等於 90°（直角）、2 個角小於 90°（銳角）'
-                          : c.angleType === 'obtuse' ? '有 1 個角大於 90°（鈍角）、2 個角小於 90°（銳角）'
-                          : '3 個角都小於 90°（都是銳角）';
+            const angDesc = c.angleType === 'right' ? '1 個直角、2 個銳角'
+                          : c.angleType === 'obtuse' ? '1 個鈍角、2 個銳角'
+                          : '3 個都是銳角';
             const hint = mode === 'side'
               ? `圖卡 ${k} 的邊長是 ${c.sides.map(fmt).join('、')} cm，有 ${c.sideType==='equilateral'?3:c.sideType==='isosceles'?2:0} 條邊一樣長，再想想看！`
-              : `圖卡 ${k} ${angDesc}，再想一想它是哪一種三角形！`;
+              : `圖卡 ${k} 剛剛量出來是「${angDesc}」，再看看要放進哪一類！`;
             ctx.say(`<h2>再想想看</h2><p>${hint}</p>`);
           }
         }
@@ -1923,7 +1923,7 @@ function dualIdentityPage() {
 const SAY = {
   isoFold: `<h2>發現了！</h2><p>對摺以後，兩條腰<em>剛好疊在一起</em>，兩個底角也<em>完全重合</em>，代表<u>等腰三角形的兩個底角一樣大</u>！</p>`,
   sortSideDone: `<h2>太棒了！</h2><p>你已經把 8 張三角形圖卡都按照「邊長」順利分類完成了！</p>`,
-  sortAngleDone: `<h2>太厲害了！</h2><p>你把 8 張圖卡都按照「角的大小」分好了！圖卡 F 有 1 個直角，所以放進直角三角形。</p>`
+  sortAngleDone: `<h2>分類完成！</h2><p>你把圖卡 A ～ H 都按照「3 個都是銳角」、「1 個直角、2 個銳角」、「1 個鈍角、2 個銳角」分好了！按「下一步」來進行歸納吧！</p>`
 };
 
 /* =========================================================================
@@ -2009,46 +2009,66 @@ add_(2, 'a-c-angles', `<h2>三種角</h2><p>你剛剛找到的銳角、直角和
   w.innerHTML = `<h3>銳角、直角、鈍角</h3><div class="cards-row" style="--cols:3">${ang(50,'#06b6d4','銳角','比 90° 直角小')}${ang(90,'#7c3aed','直角','剛好 90°，像書本的角')}${ang(130,'#ec4899','鈍角','比 90° 直角大')}</div><div class="facts">三角形的每個角都可以拿 <b>90° 直角</b>來比較：比直角小叫做<b>銳角</b>、剛好 90° 叫做<b>直角</b>、比直角大叫做<b>鈍角</b>。</div>`;
   ctx.stage.append(w); ctx.unlock(); ctx.task('記好了嗎？按「下一步」', true);
 });
-add_(2, 'a-check-A', `<h2>量角器量量看：圖卡 A</h2><p>現在我們按照字母順序 <b>A ～ H</b>，用量角器把每張圖卡的 3 個角都跟 <em>90° 直角</em>比一比！請點圖卡 <b>A</b> 的 3 個頂點（或拖動量角器），看看是<em>大於、等於還是小於 90°</em>？</p>`, rightCheck('A', `<h2>圖卡 A 量完了！</h2><p>圖卡 A 的 3 個角全部都<em>小於 90°</em>，表示 3 個角都是<em>銳角</em>。</p>`));
-add_(2, 'a-q-A', `<h2>想一想</h2><p>根據剛剛量出來的結果，回答右邊的問題吧！</p>`, quiz({
+add_(2, 'a-check-A', `<h2>量角器量量看：圖卡 A</h2><p>現在我們按照字母順序 <b>A ～ H</b>，用量角器看看每張圖卡各有幾個直角、幾個銳角、幾個鈍角！請先點圖卡 <b>A</b> 的 3 個頂點（或拖動量角器）量量看。</p>`, rightCheck('A', `<h2>圖卡 A 量完了！</h2><p>圖卡 A 的 3 個角全部都<em>小於 90°</em>，所以它是「<u>3 個都是銳角</u>」！</p>`));
+add_(2, 'a-check-B', `<h2>接著量：圖卡 B</h2><p>輪到圖卡 <b>B</b> 了！請把<em>量角器</em>移到圖卡 <b>B</b> 的 3 個頂點量量看，看看它有幾個直角、幾個銳角、幾個鈍角？</p>`, rightCheck('B', `<h2>圖卡 B 量完了！</h2><p>圖卡 B 的 3 個角也都<em>小於 90°</em>，一樣是「<u>3 個都是銳角</u>」！</p>`));
+add_(2, 'a-check-C', `<h2>接著量：圖卡 C</h2><p>換圖卡 <b>C</b>！請把<em>量角器</em>移到圖卡 <b>C</b> 的 3 個頂點量量看，找找看有沒有哪個角<em>等於 90°（直角）</em>？</p>`, rightCheck('C', `<h2>圖卡 C 量完了！</h2><p>圖卡 C 有 1 個角<em>等於 90°</em>、2 個角<em>小於 90°</em>，所以是「<u>1 個直角、2 個銳角</u>」！</p>`));
+add_(2, 'a-check-D', `<h2>接著量：圖卡 D</h2><p>換圖卡 <b>D</b>！請把<em>量角器</em>移到圖卡 <b>D</b> 的 3 個頂點量量看，看看每個角跟 <em>90°</em> 比起來是<em>大於、等於還是小於 90°</em>？</p>`, rightCheck('D', `<h2>圖卡 D 量完了！</h2><p>圖卡 D 的 3 個角全部都<em>小於 90°</em>，所以也是「<u>3 個都是銳角</u>」！</p>`));
+add_(2, 'a-check-E', `<h2>接著量：圖卡 E</h2><p>換圖卡 <b>E</b>！請把<em>量角器</em>移到圖卡 <b>E</b> 的 3 個頂點量量看，找找看有沒有哪個角<em>大於 90°</em>？</p>`, rightCheck('E', `<h2>圖卡 E 量完了！</h2><p>圖卡 E 有 1 個角<em>大於 90°</em>、2 個角<em>小於 90°</em>，所以是「<u>1 個鈍角、2 個銳角</u>」！</p>`));
+add_(2, 'a-check-F', `<h2>接著量：圖卡 F</h2><p>換圖卡 <b>F</b>！請把<em>量角器</em>移到圖卡 <b>F</b> 的 3 個頂點量量看，看看每個角是<em>大於、等於還是小於 90°</em>？</p>`, rightCheck('F', `<h2>圖卡 F 量完了！</h2><p>圖卡 F 有 1 個角<em>等於 90°</em>、2 個角<em>小於 90°</em>，所以是「<u>1 個直角、2 個銳角</u>」！</p>`));
+add_(2, 'a-check-G', `<h2>接著量：圖卡 G</h2><p>換圖卡 <b>G</b>！請把<em>量角器</em>移到圖卡 <b>G</b> 的 3 個頂點量量看，看看它的 3 個角跟 <em>90°</em> 比起來怎麼樣？</p>`, rightCheck('G', `<h2>圖卡 G 量完了！</h2><p>圖卡 G 的 3 個角全部都<em>小於 90°</em>，所以是「<u>3 個都是銳角</u>」！</p>`));
+add_(2, 'a-check-H', `<h2>最後一張：圖卡 H</h2><p>最後輪到圖卡 <b>H</b> 了！請把<em>量角器</em>移到圖卡 <b>H</b> 的 3 個頂點量量看，完成 A ～ H 全部圖卡的測量吧！</p>`, rightCheck('H', `<h2>A ～ H 全部量完了！</h2><p>圖卡 H 有 1 個角<em>大於 90°</em>、2 個角<em>小於 90°</em>，所以是「<u>1 個鈍角、2 個銳角</u>」！接著我們把 A ～ H 按照角的組合分類吧！</p>`));
+add_(2, 'a-sort', `<h2>配合課本紀錄表：依角的組合分類</h2><p>剛剛我們量完圖卡 <b>A ～ H</b> 了！請按照課本表格的分類方式，把圖卡拖進<em>「3 個都是銳角」</em>、<em>「1 個直角、2 個銳角」</em>或<em>「1 個鈍角、2 個銳角」</em>的欄位裡！</p>`, sortGame('angle'));
+add_(2, 'a-c-types', `<h2>歸納整理：認識銳角、直角、鈍角三角形</h2><p>我們把 <u>3 個角都是銳角</u>的三角形，稱為<em>銳角三角形</em>；有 <u>1 個直角</u>的三角形，稱為<em>直角三角形</em>；有 <u>1 個鈍角</u>的三角形，稱為<em>鈍角三角形</em>。</p>`, ctx => {
+  const w = document.createElement('div'); w.className = 'concept';
+  const miniList = keys => `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${keys.map(k => `<div style="display:inline-flex;align-items:center;gap:4px;background:#ffffff;border:1.5px solid #9fc0df;border-radius:10px;padding:3px 8px;font-weight:900;color:#1e3a5f">${cardSVG(k, 46, 34, { pad: 3, sw: 4, right: true, labelFs: 14 })}<span>${k}</span></div>`).join('')}</div>`;
+  w.innerHTML = `<h3>課本紀錄表與歸納：以角分類三角形</h3>
+  <div class="summary-list">
+    <div class="summary-row" style="grid-template-columns:195px 1fr 165px">
+      <div class="s-title" style="color:#1e3a5f;font-size:20px">3 個都是銳角</div>
+      <div>${miniList(['A','B','D','G'])}</div>
+      <div style="font-size:22px;font-weight:900;color:#7c3aed;text-align:right">➜ 銳角三角形</div>
+    </div>
+    <div class="summary-row" style="grid-template-columns:195px 1fr 165px">
+      <div class="s-title" style="color:#1e3a5f;font-size:20px">1 個直角、2 個銳角</div>
+      <div>${miniList(['C','F'])}</div>
+      <div style="font-size:22px;font-weight:900;color:#7c3aed;text-align:right">➜ 直角三角形</div>
+    </div>
+    <div class="summary-row" style="grid-template-columns:195px 1fr 165px">
+      <div class="s-title" style="color:#1e3a5f;font-size:20px">1 個鈍角、2 個銳角</div>
+      <div>${miniList(['E','H'])}</div>
+      <div style="font-size:22px;font-weight:900;color:#7c3aed;text-align:right">➜ 鈍角三角形</div>
+    </div>
+  </div>
+  <div class="facts" style="line-height:1.6">
+    📌 我們把 <b>3 個角都是銳角</b>的三角形，稱為<b style="color:#7c3aed">銳角三角形</b>（圖卡 A、B、D、G）；<br>
+    📌 有 <b>1 個直角</b>的三角形，稱為<b style="color:#7c3aed">直角三角形</b>（圖卡 C、F）；<br>
+    📌 有 <b>1 個鈍角</b>的三角形，稱為<b style="color:#7c3aed">鈍角三角形</b>（圖卡 E、H）。
+  </div>`;
+  ctx.stage.append(w); ctx.unlock(); ctx.task('看懂歸納重點後，按「下一步」回答課本「說說看」！', true);
+});
+add_(2, 'a-q-say-1', `<h2>課本說說看 ①：哪些是銳角三角形？</h2><p>根據剛剛的歸納，「3 個角都是銳角」的三角形稱為<em>銳角三角形</em>。找找看 A ～ H 裡面哪些是銳角三角形？</p>`, quiz({
   card: 'A', angleCmp: true,
-  q: '圖卡 A 的 3 個角都「小於 90°」（都是銳角），它是什麼三角形？',
-  opts: [['銳角三角形', true], ['直角三角形', false], ['鈍角三角形', false]],
-  explain: '3 個角都小於 90°（3 個角都是銳角）的三角形，叫做<b>銳角三角形</b>。'
+  q: '上面的三角形（A ～ H）中，哪些是「3 個角都是銳角」的銳角三角形？',
+  opts: [['圖卡 A、B、D、G', true], ['圖卡 C、F', false], ['圖卡 E、H', false]],
+  explain: '圖卡 <b>A、B、D、G</b> 的 3 個角都小於 90°（3 個都是銳角），所以都是<b>銳角三角形</b>！'
 }));
-add_(2, 'a-check-B', `<h2>接著量：圖卡 B</h2><p>輪到圖卡 <b>B</b> 了！請把<em>量角器</em>移到圖卡 <b>B</b> 的 3 個頂點量量看，看看它的 3 個角是<em>大於、等於還是小於 90°</em>？</p>`, rightCheck('B', `<h2>圖卡 B 量完了！</h2><p>圖卡 B 的 3 個角也都<em>小於 90°（都是銳角）</em>，所以圖卡 B 也是<em>銳角三角形</em>喔！</p>`));
-add_(2, 'a-check-C', `<h2>接著量：圖卡 C</h2><p>換圖卡 <b>C</b>！請把<em>量角器</em>移到圖卡 <b>C</b> 的 3 個頂點量量看，找找看有沒有哪個角<em>等於 90°（直角）</em>？</p>`, rightCheck('C', `<h2>找到了！</h2><p>圖卡 C 有 1 個角<em>等於 90°（直角）</em>，另外 2 個角都<em>小於 90°（銳角）</em>。</p>`));
-add_(2, 'a-q-C', `<h2>想一想</h2><p>根據剛剛量出來的結果，回答右邊的問題吧！</p>`, quiz({
+add_(2, 'a-q-say-2', `<h2>課本說說看 ②：哪些是直角三角形？</h2><p>接著找找看，A ～ H 裡面哪些是有 1 個直角的<em>直角三角形</em>？</p>`, quiz({
   card: 'C', right: true, angleCmp: true,
-  q: '圖卡 C 有 1 個角「等於 90°」（直角）、2 個角「小於 90°」（銳角），它是什麼三角形？',
-  opts: [['銳角三角形', false], ['直角三角形', true], ['鈍角三角形', false]],
-  explain: '三角形裡面只要有 <b>1 個直角（等於 90°）</b>，就叫做<b>直角三角形</b>。'
+  q: '上面的三角形（A ～ H）中，哪些是「有 1 個直角」的直角三角形？',
+  opts: [['圖卡 A、B、D、G', false], ['圖卡 C、F', true], ['圖卡 E、H', false]],
+  explain: '圖卡 <b>C、F</b> 都有 1 個等於 90° 的直角（和 2 個銳角），所以是<b>直角三角形</b>！'
 }));
-add_(2, 'a-check-D', `<h2>接著量：圖卡 D</h2><p>換圖卡 <b>D</b>！請把<em>量角器</em>移到圖卡 <b>D</b> 的 3 個頂點量量看，看看每個角跟 <em>90°</em> 比起來是<em>大於、等於還是小於 90°</em>？</p>`, rightCheck('D', `<h2>圖卡 D 量完了！</h2><p>圖卡 D 的 3 個角全部都<em>小於 90°（都是銳角）</em>，所以圖卡 D 也是<em>銳角三角形</em>！</p>`));
-add_(2, 'a-check-E', `<h2>接著量：圖卡 E</h2><p>換圖卡 <b>E</b>！請把<em>量角器</em>移到圖卡 <b>E</b> 的 3 個頂點量量看，找找看有沒有哪個角<em>大於 90°</em>？</p>`, rightCheck('E', `<h2>發現了！</h2><p>圖卡 E 有 1 個角<em>大於 90°（鈍角）</em>，另外 2 個角都<em>小於 90°（銳角）</em>！</p>`));
-add_(2, 'a-q-E', `<h2>想一想</h2><p>根據剛剛量出來的結果，回答右邊的問題吧！</p>`, quiz({
+add_(2, 'a-q-say-3', `<h2>課本說說看 ③：哪些是鈍角三角形？</h2><p>再找找看，A ～ H 裡面哪些是有 1 個鈍角的<em>鈍角三角形</em>？</p>`, quiz({
   card: 'E', angleCmp: true,
-  q: '圖卡 E 有 1 個角「大於 90°」（鈍角）、2 個角「小於 90°」（銳角），它是什麼三角形？',
-  opts: [['銳角三角形', false], ['直角三角形', false], ['鈍角三角形', true]],
-  explain: '三角形裡面只要有 <b>1 個鈍角（大於 90°）</b>，就叫做<b>鈍角三角形</b>。'
+  q: '上面的三角形（A ～ H）中，哪些是「有 1 個鈍角」的鈍角三角形？',
+  opts: [['圖卡 A、B、D、G', false], ['圖卡 C、F', false], ['圖卡 E、H', true]],
+  explain: '圖卡 <b>E、H</b> 都有 1 個大於 90° 的鈍角（和 2 個銳角），所以是<b>鈍角三角形</b>！'
 }));
-add_(2, 'a-check-F', `<h2>接著量：圖卡 F</h2><p>換圖卡 <b>F</b>！請把<em>量角器</em>移到圖卡 <b>F</b> 的 3 個頂點量量看，看看每個角是<em>大於、等於還是小於 90°</em>？</p>`, rightCheck('F', `<h2>圖卡 F 量完了！</h2><p>圖卡 F 有 1 個角<em>等於 90°（直角）</em>、2 個角<em>小於 90°（銳角）</em>，所以它是<em>直角三角形</em>！</p>`));
-add_(2, 'a-check-G', `<h2>接著量：圖卡 G</h2><p>換圖卡 <b>G</b>！請把<em>量角器</em>移到圖卡 <b>G</b> 的 3 個頂點量量看，看看它的 3 個角跟 <em>90°</em> 比起來怎麼樣？</p>`, rightCheck('G', `<h2>圖卡 G 量完了！</h2><p>圖卡 G 的 3 個角全部都<em>小於 90°（都是銳角）</em>，所以它是<em>銳角三角形</em>！</p>`));
-add_(2, 'a-check-H', `<h2>最後一張：圖卡 H</h2><p>最後輪到圖卡 <b>H</b> 了！請把<em>量角器</em>移到圖卡 <b>H</b> 的 3 個頂點量量看，完成 A ～ H 全部圖卡的測量吧！</p>`, rightCheck('H', `<h2>A ～ H 全部量完了！</h2><p>圖卡 H 有 1 個角<em>大於 90°（鈍角）</em>、2 個角<em>小於 90°（銳角）</em>，所以它是<em>鈍角三角形</em>！</p>`));
-add_(2, 'a-q-max', `<h2>動動腦</h2><p>回想一下剛剛量過的圖卡 A ～ H，想想看一個三角形裡面最多能有幾個鈍角？</p>`, quiz({
+add_(2, 'a-q-max', `<h2>動動腦</h2><p>回想一下剛剛分類的結果，每個三角形都有至少 2 個銳角。想想看一個三角形裡面最多能有幾個鈍角？</p>`, quiz({
   q: '一個三角形裡，最多只能有幾個鈍角？',
   opts: [['最多 1 個', true], ['最多 2 個', false], ['可以有 3 個', false]],
   explain: '三角形裡面最多只能有 <b>1 個鈍角</b>（也最多只能有 1 個直角），所以<b>只要看到 1 個鈍角，就能確定它是鈍角三角形</b>！'
 }));
-add_(2, 'a-c-types', `<h2>用角分類</h2><p>剛剛我們把圖卡 <b>A ～ H</b> 都量過一遍了！用「角的大小」來分類，三角形可以分成 3 種，先看看右邊的整理表吧！</p>`, ctx => {
-  const w = document.createElement('div'); w.className = 'concept';
-  w.innerHTML = `<h3>以角分類：整理表</h3><div class="summary-list">
-    <div class="summary-row">${cardSVG('D', 120, 88, { pad: 8, sw: 5 })}<div class="s-title" style="color:#1e3a5f">銳角三角形</div><div class="s-desc"><b>3 個角都是銳角</b>（都小於 90°）➜ 圖卡 <b>A、B、D、G</b></div></div>
-    <div class="summary-row">${cardSVG('C', 120, 88, { pad: 8, sw: 5, right: true })}<div class="s-title" style="color:#1e3a5f">直角三角形</div><div class="s-desc"><b>有 1 個直角（等於 90°）</b>，另外 2 個是銳角 ➜ 圖卡 <b>C、F</b></div></div>
-    <div class="summary-row">${cardSVG('E', 120, 88, { pad: 8, sw: 5 })}<div class="s-title" style="color:#1e3a5f">鈍角三角形</div><div class="s-desc"><b>有 1 個鈍角（大於 90°）</b>，另外 2 個是銳角 ➜ 圖卡 <b>E、H</b></div></div></div>`;
-  ctx.stage.append(w); ctx.unlock(); ctx.task('看懂了就按「下一步」', true);
-});
-add_(2, 'a-sort', `<h2>分類遊戲：以角分類</h2><p>請把上方的 8 張三角形圖卡<em>拖進</em>正確的籃子裡，觀察每個圖卡最大的角是銳角、直角還是鈍角吧！</p>`, sortGame('angle'));
 add_(2, 'a-c-isoright', `<h2>特別介紹：等腰直角三角形</h2><p>圖卡 <b>F</b> 非常特別！它有<em>2 條一樣長的腰（4 cm）</em>，又有<em>1 個 90° 直角</em>，兩個底角都是 <em>45°</em>。請點點看右邊 3 個重點！</p>`, isoRightSpecial());
 add_(2, 'a-q-F', `<h2>想一想</h2><p>觀察圖卡 F 的邊長與角度特徵，回答右邊的問題吧！</p>`, quiz({
   card: 'F', ticks: true, right: true, lens: true, angles: true,
