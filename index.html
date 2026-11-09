@@ -190,45 +190,49 @@
   .summary-row .s-title { font-size: 22px; font-weight: 900; color: #1e3a5f !important; }
   .summary-row .s-desc { font-size: 20px; font-weight: 700; color: #2c4c6e; line-height: 1.4; }
 
-  /* 分類遊戲（待分類區淺冰藍、籃子標題中霧藍、籃內淺灰藍，圖卡純白底） */
-  .sortbox { flex: 1; display: grid; grid-template-rows: 98px minmax(0, 1fr); gap: 8px; padding: 10px; min-height: 0; }
+  /* 分類遊戲（待分類區 4x2 大圖卡網格、課本雙欄表格 / 籃子） */
+  .sortbox { flex: 1; display: grid; grid-template-rows: 214px minmax(0, 1fr); gap: 8px; padding: 8px 12px; min-height: 0; }
   .pool {
-    display: flex; gap: 8px; align-items: center; justify-content: center;
-    padding: 6px 10px; background: #e3edf7; border: 2.5px dashed #9fc0e2; border-radius: 16px; min-height: 0;
+    display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px; padding: 8px 12px; background: #e3edf7; border: 2.5px dashed #9fc0e2; border-radius: 16px; min-height: 0;
+  }
+  .pool-slot {
+    display: flex; align-items: center; justify-content: center; min-height: 0; min-width: 0;
+    border-radius: 14px; border: 1.5px dashed rgba(148,180,212,.5); background: rgba(255,255,255,.35);
   }
   .baskets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; min-height: 0; }
   .basket { display: flex; flex-direction: column; border: 2.5px solid #aac4df !important; border-radius: 18px; background: #dce9f5; min-height: 0; overflow: hidden; transition: transform .15s, box-shadow .15s; }
   .basket.over { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(30,64,175,.2); border-color: #1e40af !important; }
-  .basket h4 { padding: 6px 8px 2px; font-size: 18px; font-weight: 900; text-align: center; flex: none; color: #1e3a5f !important; }
-  .basket p { padding: 0 8px 5px; font-size: 14px; font-weight: 700; text-align: center; color: #3b5978; flex: none; }
-  .basket .in { flex: 1; min-height: 0; display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; justify-content: center; padding: 6px; background: #f2f7fc; overflow-y: auto; border-top: 2px solid #bfd4ea; }
+  .basket h4 { padding: 5px 8px 1px; font-size: 18px; font-weight: 900; text-align: center; flex: none; color: #1e3a5f !important; }
+  .basket p { padding: 0 8px 4px; font-size: 14px; font-weight: 700; text-align: center; color: #3b5978; flex: none; }
+  .basket .in { flex: 1; min-height: 0; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; justify-content: center; padding: 6px; background: #f2f7fc; overflow-y: auto; border-top: 2px solid #bfd4ea; }
   .gcard {
-    width: 84px; height: 82px; flex: none; background: #ffffff; border: 2px solid #94b4d4; border-radius: 14px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    cursor: grab; box-shadow: 0 2px 6px rgba(15,23,42,.08); font-weight: 900; font-size: 13px; padding: 3px; color: #1e3a5f;
+    width: 100%; height: 100%; background: #ffffff; border: 2px solid #94b4d4; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: grab; box-shadow: 0 2px 6px rgba(15,23,42,.08); font-weight: 900; padding: 3px 6px; color: #1e3a5f;
   }
-  .gcard svg { width: 72px; height: 54px; }
-  .gcard.drag { position: fixed; z-index: 400; transform: scale(1.12); box-shadow: 0 14px 30px rgba(0,0,0,.3); opacity: .95; cursor: grabbing; }
-  .gcard.placed { cursor: default; border-color: #4a78a8; background: #ffffff; width: 76px; height: 74px; }
+  .gcard svg { width: 100%; height: 100%; display: block; }
+  .gcard.drag { position: fixed; width: 164px; height: 92px; z-index: 400; transform: scale(1.08); box-shadow: 0 14px 30px rgba(0,0,0,.3); opacity: .96; cursor: grabbing; }
+  .gcard.placed { cursor: default; border-color: #4a78a8; background: #ffffff; width: 106px; height: 74px; flex: none; }
   .gcard.back { animation: shake .35s; }
 
   /* 課本同款分類表格（左欄：分類、右欄：三角形編號） */
   .tb-sort-table {
     flex: 1; min-height: 0; display: grid;
-    grid-template-rows: 44px repeat(3, minmax(0, 1fr));
+    grid-template-rows: 38px repeat(3, minmax(0, 1fr));
     border: 2.5px solid #94a3b8; border-radius: 14px; overflow: hidden; background: #ffffff;
   }
   .tb-sort-head {
-    display: grid; grid-template-columns: 250px 1fr;
+    display: grid; grid-template-columns: 235px 1fr;
     background: #d8d2c5; border-bottom: 2px solid #94a3b8;
-    font-size: 20px; font-weight: 900; color: #1e293b;
+    font-size: 19px; font-weight: 900; color: #1e293b;
   }
   .tb-sort-head > div {
-    display: flex; align-items: center; justify-content: center; padding: 4px 12px;
+    display: flex; align-items: center; justify-content: center; padding: 2px 12px;
   }
   .tb-sort-head > div:first-child { border-right: 2px solid #94a3b8; }
   .tb-sort-row {
-    display: grid; grid-template-columns: 250px 1fr;
+    display: grid; grid-template-columns: 235px 1fr;
     border-bottom: 1.5px solid #cbd5e1; background: #fafaf9; min-height: 0;
     transition: background .15s, box-shadow .15s;
   }
@@ -239,17 +243,17 @@
   }
   .tb-sort-cat {
     border-right: 2px solid #94a3b8; display: flex; align-items: center; justify-content: center;
-    font-size: 22px; font-weight: 900; color: #0f172a; padding: 6px 12px; text-align: center;
+    font-size: 21px; font-weight: 900; color: #0f172a; padding: 4px 10px; text-align: center;
     background: #f5f5f4;
   }
   .tb-sort-val {
-    display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: flex-start;
-    padding: 6px 16px; min-height: 0; overflow-y: auto; background: #ffffff;
+    display: flex; flex-wrap: nowrap; gap: 10px; align-items: center; justify-content: flex-start;
+    padding: 4px 14px; min-height: 0; overflow-x: auto; background: #ffffff;
   }
   .tb-sort-val .gcard.placed {
-    width: 82px; height: 70px; flex-direction: row; gap: 4px; padding: 4px 6px;
+    width: 118px; height: 76px; padding: 3px 6px; flex: none;
   }
-  .tb-sort-val .gcard.placed svg { width: 48px; height: 42px; }
+  .tb-sort-val .gcard.placed svg { width: 100%; height: 100%; }
 
   /* 等腰直角三角形專頁、重點歸納、雙重身份探索（同色系深淺漸層區分區塊） */
   .isoright-stage { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.05fr 1fr; gap: 12px; padding: 10px 14px; align-items: stretch; }
@@ -1701,8 +1705,9 @@ function sortGame(mode) {
     const typeOf = k => mode === 'side' ? CARDS[k].sideType : CARDS[k].angleType;
     ctx.task(`把圖卡拖進正確的分類欄（還剩 ${left} 張）`);
     keys.forEach(k => {
+      const slot = document.createElement('div'); slot.className = 'pool-slot';
       const d = document.createElement('div'); d.className = 'gcard'; d.dataset.k = k;
-      d.innerHTML = cardSVG(k, 76, 56, { sw: 5, pad: 6, right: mode === 'angle' }) + `<span>圖卡 ${k}</span>`;
+      d.innerHTML = cardSVG(k, 160, 96, { sw: 6, pad: 8, right: mode === 'angle', ticks: mode === 'side', labelFs: 22 });
       let dx = 0, dy = 0;
       drag(d, {
         down: e => {
@@ -1738,7 +1743,8 @@ function sortGame(mode) {
           }
         }
       });
-      pool.append(d);
+      slot.append(d);
+      pool.append(slot);
     });
   };
 }
@@ -2065,7 +2071,7 @@ add_(2, 'a-check-H', `<h2>最後一張：圖卡 H</h2><p>最後輪到圖卡 <b>H
 add_(2, 'a-sort', `<h2>配合課本紀錄表：依角的組合分類</h2><p>剛剛我們量完圖卡 <b>A ～ H</b> 了！請按照課本表格的分類方式，把圖卡拖進<em>「3 個都是銳角」</em>、<em>「1 個直角、2 個銳角」</em>或<em>「1 個鈍角、2 個銳角」</em>的欄位裡！</p>`, sortGame('angle'));
 add_(2, 'a-c-types', `<h2>歸納整理：認識銳角、直角、鈍角三角形</h2><p>我們把 <u>3 個角都是銳角</u>的三角形，稱為<em>銳角三角形</em>；有 <u>1 個直角</u>的三角形，稱為<em>直角三角形</em>；有 <u>1 個鈍角</u>的三角形，稱為<em>鈍角三角形</em>。</p>`, ctx => {
   const w = document.createElement('div'); w.className = 'concept';
-  const miniList = (keys, name) => `<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${keys.map(k => `<div style="display:inline-flex;align-items:center;gap:4px;background:#ffffff;border:1.5px solid #9fc0df;border-radius:10px;padding:3px 8px;font-weight:900;color:#1e3a5f">${cardSVG(k, 46, 34, { pad: 3, sw: 4, right: true, labelFs: 14 })}<span>圖卡 ${k}</span></div>`).join('')}</div><div style="font-size:21px;font-weight:900;color:#7c3aed;white-space:nowrap">➜ ${name}</div></div>`;
+  const miniList = (keys, name) => `<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%"><div style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap">${keys.map(k => `<div style="display:inline-flex;align-items:center;justify-content:center;background:#ffffff;border:2px solid #94b4d4;border-radius:12px;width:96px;height:68px;padding:3px 5px;flex:none">${cardSVG(k, 90, 62, { pad: 5, sw: 5, right: true, labelFs: 19 })}</div>`).join('')}</div><div style="font-size:21px;font-weight:900;color:#7c3aed;white-space:nowrap">➜ ${name}</div></div>`;
   w.innerHTML = `<div class="tb-sort-table">
     <div class="tb-sort-head"><div>分類</div><div>三角形編號</div></div>
     <div class="tb-sort-row"><div class="tb-sort-cat">3 個都是銳角</div><div class="tb-sort-val">${miniList(['A','B','D','G'], '銳角三角形')}</div></div>
