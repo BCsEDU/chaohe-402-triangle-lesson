@@ -1677,7 +1677,7 @@ function rightCheck(key, finalSay) {
       hd.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => snapToVertex(+b.dataset.v)));
       $('btnFlip').addEventListener('click', () => { if (snapped < 0) return; mode = 1 - mode; sTap(); draw(); const c = toClient(svg, pts[snapped]); callout(c.x, c.y - 30, resTxt(snapped), 3000); });
       $('btnBackTool').addEventListener('click', () => { if (snapped < 0) return; snapped = -1; tool = { x: 115, y: 415 }; mode = 0; hideCallout(); draw(); status(); sTap(); });
-      if (n === 3) { ctx.task('🎉 三個角都量好了！按「下一步」', true); ctx.unlock(); if (finalSay) ctx.say(finalSay); }
+      if (n === 3) { ctx.task(`🎉 圖卡 ${key} 三個角都量好了！按「下一步」放進分類表`, true); ctx.unlock(); if (finalSay) ctx.say(finalSay); }
       else ctx.task(`把量角器拖到每個頂點（或直接點頂點）量量看（${n}/3）`);
     };
     draw(); status();
@@ -1745,6 +1745,114 @@ function sortGame(mode) {
       });
       slot.append(d);
       pool.append(slot);
+    });
+  };
+}
+
+// 8b) 逐張圖卡分類進課本表格（已量過的圖卡保留在表格內，當前量完的 activeKey 可拖曳進表格，未量的圖卡顯示待測量）
+function angleTableStep(activeKey) {
+  return ctx => {
+    const allKeys = ['A','B','C','D','E','F','G','H'];
+    const activeIdx = allKeys.indexOf(activeKey);
+    const nextKey = activeIdx < allKeys.length - 1 ? allKeys[activeIdx + 1] : null;
+    const cfg = [
+      ['acute', '3 個都是銳角'],
+      ['right', '1 個直角、2 個銳角'],
+      ['obtuse', '1 個鈍角、2 個銳角']
+    ];
+    const rowTitleMap = { acute:'3 個都是銳角', right:'1 個直角、2 個銳角', obtuse:'1 個鈍角、2 個銳角' };
+
+    const wrap = document.createElement('div'); wrap.className = 'sortbox';
+    wrap.innerHTML = `<div class="pool" id="pool"></div>
+      <div class="tb-sort-table">
+        <div class="tb-sort-head"><div>分類</div><div>三角形編號</div></div>
+        ${cfg.map(([k,t]) => `<div class="tb-sort-row basket" data-k="${k}"><div class="tb-sort-cat">${t}</div><div class="tb-sort-val in"></div></div>`).join('')}
+      </div>`;
+    ctx.stage.append(wrap);
+    const pool = wrap.querySelector('#pool');
+    ctx.task(`請把剛剛量好的「圖卡 ${activeKey}」拖進下方正確的表格欄位裡！`);
+
+    allKeys.forEach((k, idx) => {
+      const slot = document.createElement('div'); slot.className = 'pool-slot';
+      pool.append(slot);
+
+      if (idx < activeIdx) {
+        slot.innerHTML = `<span style="font-size:15px;font-weight:900;color:#64748b">✅ 圖卡 ${k} 已分類</span>`;
+        const placedCard = document.createElement('div');
+        placedCard.className = 'gcard placed';
+        placedCard.innerHTML = cardSVG(k, 160, 96, { sw: 6, pad: 8, right: true, labelFs: 22 });
+        const rowIn = wrap.querySelector(`.basket[data-k="${CARDS[k].angleType}"] .in`);
+        if (rowIn) rowIn.append(placedCard);
+      } else if (idx === activeIdx) {
+        const d = document.createElement('div');
+        d.className = 'gcard';
+        d.dataset.k = k;
+        d.style.border = '3px solid #2563eb';
+        d.style.boxShadow = '0 0 0 4px rgba(37,99,235,.22)';
+        d.innerHTML = cardSVG(k, 160, 96, { sw: 6, pad: 8, right: true, angleCmp: true, labelFs: 22 });
+        let dx = 0, dy = 0;
+        drag(d, {
+          down: e => {
+            if (d.classList.contains('placed')) return;
+            const r = d.getBoundingClientRect(); dx = e.clientX - r.left; dy = e.clientY - r.top;
+            d.classList.add('drag'); d.style.left = r.left + 'px'; d.style.top = r.top + 'px'; sTap();
+          },
+          move: e => {
+            if (d.classList.contains('placed')) return;
+            d.style.left = (e.clientX - dx) + 'px'; d.style.top = (e.clientY - dy) + 'px';
+            wrap.querySelectorAll('.basket').forEach(b => {
+              const r = b.getBoundingClientRect();
+              b.classList.toggle('over', e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom);
+            });
+          },
+          up: e => {
+            if (d.classList.contains('placed')) return;
+            d.classList.remove('drag'); d.style.left = d.style.top = '';
+            let tgt = null;
+            wrap.querySelectorAll('.basket').forEach(b => {
+              b.classList.remove('over');
+              const r = b.getBoundingClientRect();
+              if (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom) tgt = b;
+            });
+            if (!tgt) return;
+            const ansType = CARDS[k].angleType;
+            if (tgt.dataset.k === ansType) {
+              d.classList.add('placed');
+              d.style.border = ''; d.style.boxShadow = '';
+              d.innerHTML = cardSVG(k, 160, 96, { sw: 6, pad: 8, right: true, labelFs: 22 });
+              tgt.querySelector('.in').append(d);
+              slot.innerHTML = `<span style="font-size:15px;font-weight:900;color:#16a34a">✅ 圖卡 ${k} 已分類</span>`;
+              sOk();
+              ctx.unlock();
+              if (nextKey) {
+                ctx.task(`🎉 圖卡 ${k} 分類好了！按「下一步」繼續量圖卡 ${nextKey}`, true);
+                ctx.say(`<h2>圖卡 ${k} 分類完成！</h2><p>已經把圖卡 <b>${k}</b> 放進「<em>${rowTitleMap[ansType]}</em>」了！按「下一步」繼續用量角器量圖卡 <b>${nextKey}</b> 吧！</p>`);
+              } else {
+                ctx.task('🎉 A ～ H 全部分類完成了！按「下一步」看歸納整理', true);
+                ctx.say(SAY.sortAngleDone);
+              }
+            } else {
+              sNo(); d.classList.remove('back'); void d.offsetWidth; d.classList.add('back');
+              const angDesc = ansType === 'right' ? '1 個直角、2 個銳角'
+                            : ansType === 'obtuse' ? '1 個鈍角、2 個銳角'
+                            : '3 個都是銳角';
+              ctx.say(`<h2>再想想看</h2><p>圖卡 <b>${k}</b> 剛剛量出來是「<em>${angDesc}</em>」，再看看要放進哪一列！</p>`);
+            }
+          }
+        });
+        slot.append(d);
+      } else {
+        const d = document.createElement('div');
+        d.className = 'gcard';
+        d.style.opacity = '0.42';
+        d.style.cursor = 'not-allowed';
+        d.innerHTML = cardSVG(k, 160, 96, { sw: 6, pad: 8, labelFs: 22 });
+        d.addEventListener('pointerdown', e => {
+          sTap();
+          callout(e.clientX, e.clientY, `圖卡 ${k} 還沒量過喔！請先拖曳圖卡 <span>${activeKey}</span>`, 2200);
+        });
+        slot.append(d);
+      }
     });
   };
 }
@@ -2060,15 +2168,22 @@ add_(2, 'a-c-angles', `<h2>三種角</h2><p>你剛剛找到的銳角、直角和
   w.innerHTML = `<h3>銳角、直角、鈍角</h3><div class="cards-row" style="--cols:3">${ang(50,'#06b6d4','銳角','比 90° 直角小')}${ang(90,'#7c3aed','直角','剛好 90°，像書本的角')}${ang(130,'#ec4899','鈍角','比 90° 直角大')}</div><div class="facts">三角形的每個角都可以拿 <b>90° 直角</b>來比較：比直角小叫做<b>銳角</b>、剛好 90° 叫做<b>直角</b>、比直角大叫做<b>鈍角</b>。</div>`;
   ctx.stage.append(w); ctx.unlock(); ctx.task('記好了嗎？按「下一步」', true);
 });
-add_(2, 'a-check-A', `<h2>量角器量量看：圖卡 A</h2><p>現在我們按照字母順序 <b>A ～ H</b>，用量角器看看每張圖卡各有幾個直角、幾個銳角、幾個鈍角！請先點圖卡 <b>A</b> 的 3 個頂點（或拖動量角器）量量看。</p>`, rightCheck('A', `<h2>圖卡 A 量完了！</h2><p>圖卡 A 的 3 個角全部都<em>小於 90°</em>，所以它是「<u>3 個都是銳角</u>」！</p>`));
-add_(2, 'a-check-B', `<h2>接著量：圖卡 B</h2><p>輪到圖卡 <b>B</b> 了！請把<em>量角器</em>移到圖卡 <b>B</b> 的 3 個頂點量量看，看看它有幾個直角、幾個銳角、幾個鈍角？</p>`, rightCheck('B', `<h2>圖卡 B 量完了！</h2><p>圖卡 B 的 3 個角也都<em>小於 90°</em>，一樣是「<u>3 個都是銳角</u>」！</p>`));
-add_(2, 'a-check-C', `<h2>接著量：圖卡 C</h2><p>換圖卡 <b>C</b>！請把<em>量角器</em>移到圖卡 <b>C</b> 的 3 個頂點量量看，找找看有沒有哪個角<em>等於 90°（直角）</em>？</p>`, rightCheck('C', `<h2>圖卡 C 量完了！</h2><p>圖卡 C 有 1 個角<em>等於 90°</em>、2 個角<em>小於 90°</em>，所以是「<u>1 個直角、2 個銳角</u>」！</p>`));
-add_(2, 'a-check-D', `<h2>接著量：圖卡 D</h2><p>換圖卡 <b>D</b>！請把<em>量角器</em>移到圖卡 <b>D</b> 的 3 個頂點量量看，看看每個角跟 <em>90°</em> 比起來是<em>大於、等於還是小於 90°</em>？</p>`, rightCheck('D', `<h2>圖卡 D 量完了！</h2><p>圖卡 D 的 3 個角全部都<em>小於 90°</em>，所以也是「<u>3 個都是銳角</u>」！</p>`));
-add_(2, 'a-check-E', `<h2>接著量：圖卡 E</h2><p>換圖卡 <b>E</b>！請把<em>量角器</em>移到圖卡 <b>E</b> 的 3 個頂點量量看，找找看有沒有哪個角<em>大於 90°</em>？</p>`, rightCheck('E', `<h2>圖卡 E 量完了！</h2><p>圖卡 E 有 1 個角<em>大於 90°</em>、2 個角<em>小於 90°</em>，所以是「<u>1 個鈍角、2 個銳角</u>」！</p>`));
-add_(2, 'a-check-F', `<h2>接著量：圖卡 F</h2><p>換圖卡 <b>F</b>！請把<em>量角器</em>移到圖卡 <b>F</b> 的 3 個頂點量量看，看看每個角是<em>大於、等於還是小於 90°</em>？</p>`, rightCheck('F', `<h2>圖卡 F 量完了！</h2><p>圖卡 F 有 1 個角<em>等於 90°</em>、2 個角<em>小於 90°</em>，所以是「<u>1 個直角、2 個銳角</u>」！</p>`));
-add_(2, 'a-check-G', `<h2>接著量：圖卡 G</h2><p>換圖卡 <b>G</b>！請把<em>量角器</em>移到圖卡 <b>G</b> 的 3 個頂點量量看，看看它的 3 個角跟 <em>90°</em> 比起來怎麼樣？</p>`, rightCheck('G', `<h2>圖卡 G 量完了！</h2><p>圖卡 G 的 3 個角全部都<em>小於 90°</em>，所以是「<u>3 個都是銳角</u>」！</p>`));
-add_(2, 'a-check-H', `<h2>最後一張：圖卡 H</h2><p>最後輪到圖卡 <b>H</b> 了！請把<em>量角器</em>移到圖卡 <b>H</b> 的 3 個頂點量量看，完成 A ～ H 全部圖卡的測量吧！</p>`, rightCheck('H', `<h2>A ～ H 全部量完了！</h2><p>圖卡 H 有 1 個角<em>大於 90°</em>、2 個角<em>小於 90°</em>，所以是「<u>1 個鈍角、2 個銳角</u>」！接著我們把 A ～ H 按照角的組合分類吧！</p>`));
-add_(2, 'a-sort', `<h2>配合課本紀錄表：依角的組合分類</h2><p>剛剛我們量完圖卡 <b>A ～ H</b> 了！請按照課本表格的分類方式，把圖卡拖進<em>「3 個都是銳角」</em>、<em>「1 個直角、2 個銳角」</em>或<em>「1 個鈍角、2 個銳角」</em>的欄位裡！</p>`, sortGame('angle'));
+add_(2, 'a-check-A', `<h2>量角器量量看：圖卡 A</h2><p>現在我們按照字母順序 <b>A ～ H</b>，每量完一張圖卡就立刻放進課本紀錄表！請先點圖卡 <b>A</b> 的 3 個頂點（或拖動量角器）量量看。</p>`, rightCheck('A', `<h2>圖卡 A 量完了！</h2><p>圖卡 A 的 3 個角全部都<em>小於 90°</em>，是「<u>3 個都是銳角</u>」！按「下一步」把它拖進分類表格吧！</p>`));
+add_(2, 'a-sort-A', `<h2>紀錄表分類：圖卡 A</h2><p>剛剛量出圖卡 <b>A</b> 的 3 個角都小於 90°。請把上方發亮的圖卡 <b>A</b> 拖進下方表格對應的分類列裡！</p>`, angleTableStep('A'));
+add_(2, 'a-check-B', `<h2>接著量：圖卡 B</h2><p>輪到圖卡 <b>B</b> 了！請把<em>量角器</em>移到圖卡 <b>B</b> 的 3 個頂點量量看，看看它有幾個直角、幾個銳角、幾個鈍角？</p>`, rightCheck('B', `<h2>圖卡 B 量完了！</h2><p>圖卡 B 的 3 個角也都<em>小於 90°</em>，一樣是「<u>3 個都是銳角</u>」！按「下一步」把它放進分類表格吧！</p>`));
+add_(2, 'a-sort-B', `<h2>紀錄表分類：圖卡 B</h2><p>剛剛量出圖卡 <b>B</b> 也是 3 個角都小於 90°。請把上方發亮的圖卡 <b>B</b> 拖進下方表格對應的分類列裡！</p>`, angleTableStep('B'));
+add_(2, 'a-check-C', `<h2>接著量：圖卡 C</h2><p>換圖卡 <b>C</b>！請把<em>量角器</em>移到圖卡 <b>C</b> 的 3 個頂點量量看，找找看有沒有哪個角<em>等於 90°（直角）</em>？</p>`, rightCheck('C', `<h2>圖卡 C 量完了！</h2><p>圖卡 C 有 1 個角<em>等於 90°</em>、2 個角<em>小於 90°</em>，是「<u>1 個直角、2 個銳角</u>」！按「下一步」放進分類表格吧！</p>`));
+add_(2, 'a-sort-C', `<h2>紀錄表分類：圖卡 C</h2><p>剛剛量出圖卡 <b>C</b> 有 1 個直角、2 個銳角。請把上方發亮的圖卡 <b>C</b> 拖進下方表格對應的分類列裡！</p>`, angleTableStep('C'));
+add_(2, 'a-check-D', `<h2>接著量：圖卡 D</h2><p>換圖卡 <b>D</b>！請把<em>量角器</em>移到圖卡 <b>D</b> 的 3 個頂點量量看，看看每個角跟 <em>90°</em> 比起來是<em>大於、等於還是小於 90°</em>？</p>`, rightCheck('D', `<h2>圖卡 D 量完了！</h2><p>圖卡 D 的 3 個角全部都<em>小於 90°</em>，是「<u>3 個都是銳角</u>」！按「下一步」放進分類表格吧！</p>`));
+add_(2, 'a-sort-D', `<h2>紀錄表分類：圖卡 D</h2><p>剛剛量出圖卡 <b>D</b> 的 3 個角都小於 90°。請把上方發亮的圖卡 <b>D</b> 拖進下方表格對應的分類列裡！</p>`, angleTableStep('D'));
+add_(2, 'a-check-E', `<h2>接著量：圖卡 E</h2><p>換圖卡 <b>E</b>！請把<em>量角器</em>移到圖卡 <b>E</b> 的 3 個頂點量量看，找找看有沒有哪個角<em>大於 90°</em>？</p>`, rightCheck('E', `<h2>圖卡 E 量完了！</h2><p>圖卡 E 有 1 個角<em>大於 90°</em>、2 個角<em>小於 90°</em>，是「<u>1 個鈍角、2 個銳角</u>」！按「下一步」放進分類表格吧！</p>`));
+add_(2, 'a-sort-E', `<h2>紀錄表分類：圖卡 E</h2><p>剛剛量出圖卡 <b>E</b> 有 1 個鈍角、2 個銳角。請把上方發亮的圖卡 <b>E</b> 拖進下方表格對應的分類列裡！</p>`, angleTableStep('E'));
+add_(2, 'a-check-F', `<h2>接著量：圖卡 F</h2><p>換圖卡 <b>F</b>！請把<em>量角器</em>移到圖卡 <b>F</b> 的 3 個頂點量量看，看看每個角是<em>大於、等於還是小於 90°</em>？</p>`, rightCheck('F', `<h2>圖卡 F 量完了！</h2><p>圖卡 F 有 1 個角<em>等於 90°</em>、2 個角<em>小於 90°</em>，是「<u>1 個直角、2 個銳角</u>」！按「下一步」放進分類表格吧！</p>`));
+add_(2, 'a-sort-F', `<h2>紀錄表分類：圖卡 F</h2><p>剛剛量出圖卡 <b>F</b> 有 1 個直角、2 個銳角。請把上方發亮的圖卡 <b>F</b> 拖進下方表格對應的分類列裡！</p>`, angleTableStep('F'));
+add_(2, 'a-check-G', `<h2>接著量：圖卡 G</h2><p>換圖卡 <b>G</b>！請把<em>量角器</em>移到圖卡 <b>G</b> 的 3 個頂點量量看，看看它的 3 個角跟 <em>90°</em> 比起來怎麼樣？</p>`, rightCheck('G', `<h2>圖卡 G 量完了！</h2><p>圖卡 G 的 3 個角全部都<em>小於 90°</em>，是「<u>3 個都是銳角</u>」！按「下一步」放進分類表格吧！</p>`));
+add_(2, 'a-sort-G', `<h2>紀錄表分類：圖卡 G</h2><p>剛剛量出圖卡 <b>G</b> 的 3 個角都小於 90°。請把上方發亮的圖卡 <b>G</b> 拖進下方表格對應的分類列裡！</p>`, angleTableStep('G'));
+add_(2, 'a-check-H', `<h2>最後一張：圖卡 H</h2><p>最後輪到圖卡 <b>H</b> 了！請把<em>量角器</em>移到圖卡 <b>H</b> 的 3 個頂點量量看，完成 A ～ H 全部圖卡的測量吧！</p>`, rightCheck('H', `<h2>圖卡 H 量完了！</h2><p>圖卡 H 有 1 個角<em>大於 90°</em>、2 個角<em>小於 90°</em>，是「<u>1 個鈍角、2 個銳角</u>」！按「下一步」把最後一張圖卡放進分類表格吧！</p>`));
+add_(2, 'a-sort-H', `<h2>紀錄表分類：圖卡 H</h2><p>最後一張了！請把上方發亮的圖卡 <b>H</b> 拖進下方表格對應的分類列裡，完成整張課本紀錄表！</p>`, angleTableStep('H'));
 add_(2, 'a-c-types', `<h2>歸納整理：認識銳角、直角、鈍角三角形</h2><p>我們把 <u>3 個角都是銳角</u>的三角形，稱為<em>銳角三角形</em>；有 <u>1 個直角</u>的三角形，稱為<em>直角三角形</em>；有 <u>1 個鈍角</u>的三角形，稱為<em>鈍角三角形</em>。</p>`, ctx => {
   const w = document.createElement('div'); w.className = 'concept';
   const miniList = (keys, name) => `<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%"><div style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap">${keys.map(k => `<div style="display:inline-flex;align-items:center;justify-content:center;background:#ffffff;border:2px solid #94b4d4;border-radius:12px;width:96px;height:68px;padding:3px 5px;flex:none">${cardSVG(k, 90, 62, { pad: 5, sw: 5, right: true, labelFs: 19 })}</div>`).join('')}</div><div style="font-size:21px;font-weight:900;color:#7c3aed;white-space:nowrap">➜ ${name}</div></div>`;
