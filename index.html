@@ -1529,9 +1529,8 @@ function rightCheck(key, finalSay) {
     };
     const snapToVertex = i => {
       snapped = i; mode = 0; dragging = false;
+      hideCallout();
       sTap(); evalSnap(); draw();
-      const c = toClient(svg, pts[snapped]);
-      callout(c.x, c.y - 30, resTxt(snapped), 3200);
     };
 
     // 繪製量角器（cx, cy 為中心點，u 為 0° 基準方向，n 為 90° 方向；文字永遠保持正向不鏡像）
@@ -1676,18 +1675,16 @@ function rightCheck(key, finalSay) {
         + `<button class="chip" id="btnFlip" ${snapped<0?'disabled style="opacity:.4"':''}>🔁 換另一條邊對齊 0°</button>`
         + `<button class="chip" id="btnBackTool" ${snapped<0?'disabled style="opacity:.4"':''}>↩ 收回量角器</button>`;
       hd.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => snapToVertex(+b.dataset.v)));
-      $('btnFlip').addEventListener('click', () => { if (snapped < 0) return; mode = 1 - mode; sTap(); draw(); const c = toClient(svg, pts[snapped]); callout(c.x, c.y - 30, resTxt(snapped), 3000); });
+      $('btnFlip').addEventListener('click', () => { if (snapped < 0) return; mode = 1 - mode; sTap(); draw(); });
       $('btnBackTool').addEventListener('click', () => { if (snapped < 0) return; snapped = -1; tool = { x: 115, y: 415 }; mode = 0; hideCallout(); draw(); status(); sTap(); });
       if (n === 3) {
         if (finalSay) ctx.say(finalSay);
         stepReadDone = true;
-        ctx.task(`🎉 圖卡 ${key} 三個角都量好了！正在前往分類表格⋯`, true);
+        ctx.task(`🎉 圖卡 ${key} 三個角都量好了！按「下一步」放進分類表格`, true);
         ctx.unlock();
         if (!autoDone) {
           autoDone = true;
           sOk();
-          clearTimeout(autoNavTimer);
-          autoNavTimer = setTimeout(() => { if (cur === ctx) go(S.idx + 1); }, 1200);
         }
       } else {
         ctx.task(`把量角器拖到每個頂點（或直接點頂點）量量看（${n}/3）`);
@@ -1837,12 +1834,10 @@ function angleTableStep(activeKey) {
               slot.innerHTML = `<span style="font-size:15px;font-weight:900;color:#16a34a">✅ 圖卡 ${k} 已分類</span>`;
               sOk();
               if (nextKey) {
-                ctx.say(`<h2>圖卡 ${k} 分類完成！</h2><p>已經把圖卡 <b>${k}</b> 放進「<em>${rowTitleMap[ansType]}</em>」了！接下來繼續量圖卡 <b>${nextKey}</b>！</p>`);
+                ctx.say(`<h2>圖卡 ${k} 分類完成！</h2><p>已經把圖卡 <b>${k}</b> 放進「<em>${rowTitleMap[ansType]}</em>」了！按「下一步」繼續用量角器量圖卡 <b>${nextKey}</b> 吧！</p>`);
                 stepReadDone = true;
-                ctx.task(`🎉 圖卡 ${k} 分類好了！正在前往測量圖卡 ${nextKey}⋯`, true);
+                ctx.task(`🎉 圖卡 ${k} 分類好了！按「下一步」繼續量圖卡 ${nextKey}`, true);
                 ctx.unlock();
-                clearTimeout(autoNavTimer);
-                autoNavTimer = setTimeout(() => { if (cur === ctx) go(S.idx + 1); }, 1100);
               } else {
                 ctx.say(SAY.sortAngleDone);
                 stepReadDone = true;
