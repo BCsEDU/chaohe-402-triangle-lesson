@@ -1669,6 +1669,7 @@ function rightCheck(key, finalSay) {
       }
     });
 
+    let autoDone = false;
     const status = () => {
       const n = Object.keys(res).length;
       hd.innerHTML = [0,1,2].map(i => `<button class="chip ${res[i]?'ok':''}" data-v="${i}">頂點 ${'①②③'[i]}：${res[i] ? label[res[i]] : '點我或拖量角器'}</button>`).join('')
@@ -1677,8 +1678,20 @@ function rightCheck(key, finalSay) {
       hd.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => snapToVertex(+b.dataset.v)));
       $('btnFlip').addEventListener('click', () => { if (snapped < 0) return; mode = 1 - mode; sTap(); draw(); const c = toClient(svg, pts[snapped]); callout(c.x, c.y - 30, resTxt(snapped), 3000); });
       $('btnBackTool').addEventListener('click', () => { if (snapped < 0) return; snapped = -1; tool = { x: 115, y: 415 }; mode = 0; hideCallout(); draw(); status(); sTap(); });
-      if (n === 3) { ctx.task(`🎉 圖卡 ${key} 三個角都量好了！按「下一步」放進分類表`, true); ctx.unlock(); if (finalSay) ctx.say(finalSay); }
-      else ctx.task(`把量角器拖到每個頂點（或直接點頂點）量量看（${n}/3）`);
+      if (n === 3) {
+        if (finalSay) ctx.say(finalSay);
+        stepReadDone = true;
+        ctx.task(`🎉 圖卡 ${key} 三個角都量好了！正在前往分類表格⋯`, true);
+        ctx.unlock();
+        if (!autoDone) {
+          autoDone = true;
+          sOk();
+          clearTimeout(autoNavTimer);
+          autoNavTimer = setTimeout(() => { if (cur === ctx) go(S.idx + 1); }, 1200);
+        }
+      } else {
+        ctx.task(`把量角器拖到每個頂點（或直接點頂點）量量看（${n}/3）`);
+      }
     };
     draw(); status();
   };
@@ -1823,13 +1836,18 @@ function angleTableStep(activeKey) {
               tgt.querySelector('.in').append(d);
               slot.innerHTML = `<span style="font-size:15px;font-weight:900;color:#16a34a">✅ 圖卡 ${k} 已分類</span>`;
               sOk();
-              ctx.unlock();
               if (nextKey) {
-                ctx.task(`🎉 圖卡 ${k} 分類好了！按「下一步」繼續量圖卡 ${nextKey}`, true);
-                ctx.say(`<h2>圖卡 ${k} 分類完成！</h2><p>已經把圖卡 <b>${k}</b> 放進「<em>${rowTitleMap[ansType]}</em>」了！按「下一步」繼續用量角器量圖卡 <b>${nextKey}</b> 吧！</p>`);
+                ctx.say(`<h2>圖卡 ${k} 分類完成！</h2><p>已經把圖卡 <b>${k}</b> 放進「<em>${rowTitleMap[ansType]}</em>」了！接下來繼續量圖卡 <b>${nextKey}</b>！</p>`);
+                stepReadDone = true;
+                ctx.task(`🎉 圖卡 ${k} 分類好了！正在前往測量圖卡 ${nextKey}⋯`, true);
+                ctx.unlock();
+                clearTimeout(autoNavTimer);
+                autoNavTimer = setTimeout(() => { if (cur === ctx) go(S.idx + 1); }, 1100);
               } else {
-                ctx.task('🎉 A ～ H 全部分類完成了！按「下一步」看歸納整理', true);
                 ctx.say(SAY.sortAngleDone);
+                stepReadDone = true;
+                ctx.task('🎉 A ～ H 全部分類完成了！按「下一步」看歸納整理', true);
+                ctx.unlock();
               }
             } else {
               sNo(); d.classList.remove('back'); void d.offsetWidth; d.classList.add('back');
@@ -2262,13 +2280,14 @@ add_(3, 'finish', `<h2>恭喜你全部完成了！</h2><p>你已經學會用「�
 /* =========================================================================
    流程控制
    ========================================================================= */
-const KEY = 'tri-lesson-v1';
+const KEY = 'tri-lesson-v2';
 let S = { idx: 0, done: {}, star: {}, stars: 0, wide: false };
 try { const t = JSON.parse(localStorage.getItem(KEY) || 'null'); if (t) S = Object.assign(S, t); } catch (e) {}
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 function resetAll() { S = { idx: 0, done: {}, star: {}, stars: 0, wide: S.wide }; save(); closeModal(); go(0); }
 
 let cur = null;
+let autoNavTimer = 0;
 let stepTaskDone = false;
 let stepReadDone = false;
 let rawTaskTxt = '';
@@ -2299,6 +2318,7 @@ function updateReadAndNav() {
 }
 
 function go(i) {
+  clearTimeout(autoNavTimer);
   ttsStop();
   i = Math.max(0, Math.min(STEPS.length - 1, i));
   S.idx = i; save(); hideCallout();
