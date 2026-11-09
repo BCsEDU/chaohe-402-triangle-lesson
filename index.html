@@ -450,6 +450,14 @@ function cardSVG(key, w = 240, h = 180, o = {}) {
       : add(pts[i], mul(sub(cen(pts), pts[i]), .33));
     s += `<text x="${t.x}" y="${t.y+5}" font-size="${o.fs ?? 15}" font-weight="900" fill="#be123c" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="3">${card.angTxt[i]}</text>`;
   }
+  if (o.angleCmp) for (let i = 0; i < 3; i++) {
+    const t = card.real[i] > 100
+      ? add(pts[i], mul(unit(sub(pts[i], cen(pts))), 18))
+      : add(pts[i], mul(sub(cen(pts), pts[i]), .35));
+    const cmpTxt = Math.abs(card.real[i]-90) < .01 ? '=90°' : card.real[i] < 90 ? '<90°' : '>90°';
+    const cmpCol = Math.abs(card.real[i]-90) < .01 ? '#6d28d9' : card.real[i] < 90 ? '#0369a1' : '#be123c';
+    s += `<text x="${t.x}" y="${t.y+5}" font-size="${o.fs ?? 14}" font-weight="900" fill="${cmpCol}" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="3.5">${cmpTxt}</text>`;
+  }
   if (o.lens) for (let i = 0; i < 3; i++) {
     const t = outward(pts, i, 19);
     s += `<text x="${t.x}" y="${t.y+5}" font-size="${o.fs ?? 15}" font-weight="900" fill="#0f172a" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="3">${fmt(card.sides[i])} cm</text>`;
@@ -1443,18 +1451,21 @@ function angleSlider() {
   };
 }
 
-// 7) 量角器測量頂點（支援直接從已吸附頂點拖去下一個頂點，或直接點頂點測量）
+// 7) 量角器測量頂點（支援直接從已吸附頂點拖去下一個頂點，或直接點頂點測量；只呈現大於/等於/小於 90°）
 function rightCheck(key, finalSay) {
   return ctx => {
     const card = CARDS[key];
-    const pts = geom(key, 400, 215, (key === 'E' ? 1.35 : 1.5) * 36, 0);
+    const scaleMap = { B: 1.3, E: 1.32, H: 1.32, D: 1.42 };
+    const pts = geom(key, 400, 215, (scaleMap[key] || 1.48) * 36, 0);
     const svg = mkSvg('0 0 760 470'); ctx.stage.append(svg);
     const hd = hud(ctx);
     const res = {};
     let snapped = -1, mode = 0;
     let tool = { x: 115, y: 415 }, dragging = false, off = { x: 0, y: 0 };
     const R = 135, rIn = 38;
-    const label = { acute:'銳角（< 90°）', right:'直角（90°）', obtuse:'鈍角（> 90°）' };
+    const label = { acute:'小於 90°（銳角）', right:'等於 90°（直角）', obtuse:'大於 90°（鈍角）' };
+    const vtxTag = { acute:'＜90° 銳角', right:'＝90° 直角', obtuse:'＞90° 鈍角' };
+    const vtxCol = { acute:'#0369a1', right:'#6d28d9', obtuse:'#be123c' };
 
     const frame = (i, m) => {
       const p = pts[i], toNext = unit(sub(pts[(i+1)%3], p)), toPrev = unit(sub(pts[(i+2)%3], p));
@@ -1467,7 +1478,7 @@ function rightCheck(key, finalSay) {
       pts.forEach((p, i) => { const d = Math.hypot(p.x - pt.x, p.y - pt.y); if (d < bd) { bd = d; b = i; } });
       return bd < 78 ? b : -1;
     };
-    const resTxt = i => `頂點 ${'①②③'[i]}：<span>${card.angTxt[i]} ${label[res[i]]}</span>`;
+    const resTxt = i => `頂點 ${'①②③'[i]}：<span>${label[res[i]]}</span>`;
     const evalSnap = () => {
       const t = Math.abs(card.real[snapped]-90) < .01 ? 'right' : card.real[snapped] < 90 ? 'acute' : 'obtuse';
       res[snapped] = t;
@@ -1516,14 +1527,16 @@ function rightCheck(key, finalSay) {
         const lblPt = mapPt(0, rIn * 0.52);
         g += `<text x="${lblPt.x.toFixed(1)}" y="${lblPt.y.toFixed(1)}" font-size="16" font-weight="900" fill="#0369a1" text-anchor="middle" dominant-baseline="central" paint-order="stroke" stroke="#fff" stroke-width="3">量角器（拖我或點頂點）</text>`;
       }
-      // 若已對齊頂點，畫出紅邊指針與角度讀數標籤
+      // 若已對齊頂點，畫出紅邊指針與「小於 / 等於 / 大於 90°」比較標籤
       if (otherVec) {
         const tip = { x: p.x + otherVec.x * (R + 18), y: p.y + otherVec.y * (R + 18) };
         const onArc = { x: p.x + otherVec.x * R, y: p.y + otherVec.y * R };
         g += `<line x1="${p.x}" y1="${p.y}" x2="${tip.x.toFixed(1)}" y2="${tip.y.toFixed(1)}" stroke="#ef4444" stroke-width="6" stroke-linecap="round"/>`;
         g += `<circle cx="${onArc.x.toFixed(1)}" cy="${onArc.y.toFixed(1)}" r="8" fill="#ef4444" stroke="#fff" stroke-width="2.5"/>`;
-        const badge = { x: p.x + otherVec.x * (R + 44), y: p.y + otherVec.y * (R + 44) };
-        g += `<text x="${badge.x.toFixed(1)}" y="${badge.y.toFixed(1)}" font-size="22" font-weight="900" fill="#dc2626" text-anchor="middle" dominant-baseline="central" paint-order="stroke" stroke="#fff" stroke-width="5">${degTxt}</text>`;
+        const rawBadge = { x: p.x + otherVec.x * (R + 44), y: p.y + otherVec.y * (R + 44) };
+        const bx = Math.max(98, Math.min(662, rawBadge.x));
+        const by = Math.max(26, Math.min(444, rawBadge.y));
+        g += `<text x="${bx.toFixed(1)}" y="${by.toFixed(1)}" font-size="21" font-weight="900" fill="#dc2626" text-anchor="middle" dominant-baseline="central" paint-order="stroke" stroke="#fff" stroke-width="5">${degTxt}</text>`;
       }
       g += `</g>`;
       return g;
@@ -1531,20 +1544,29 @@ function rightCheck(key, finalSay) {
 
     const draw = () => {
       let h = `<polygon points="${P(pts)}" fill="#e0f2fe"/>`;
+      for (let i = 0; i < 3; i++) if (res[i] === 'right') {
+        h += rightMark(pts[i], unit(sub(pts[(i+1)%3],pts[i])), unit(sub(pts[(i+2)%3],pts[i])), 20);
+      }
       for (let i = 0; i < 3; i++) {
         const a = pts[i], b = pts[(i+1)%3];
         h += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${card.col[i]}" stroke-width="9" stroke-linecap="round"/>`;
       }
       h += centerCode(pts, key, 36);
       for (let i = 0; i < 3; i++) {
-        const p = pts[i], t = add(p, mul(unit(sub(p, cen(pts))), 30));
+        const p = pts[i], outDir = unit(sub(p, cen(pts))), t = add(p, mul(outDir, 30));
         h += `<circle cx="${p.x}" cy="${p.y}" r="11" fill="${res[i] ? '#16a34a' : '#2563eb'}" stroke="#fff" stroke-width="3"/>`;
-        h += `<text x="${t.x}" y="${t.y+8}" font-size="22" font-weight="900" fill="#334155" text-anchor="middle">${'①②③'[i]}</text>`;
+        h += `<text x="${t.x}" y="${t.y+8}" font-size="22" font-weight="900" fill="#334155" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="3">${'①②③'[i]}</text>`;
+        if (res[i] && (snapped !== i || dragging)) {
+          const tagPt = add(p, mul(outDir, 56));
+          const tx = Math.max(64, Math.min(696, tagPt.x));
+          const ty = Math.max(24, Math.min(446, tagPt.y));
+          h += `<text x="${tx.toFixed(1)}" y="${(ty+6).toFixed(1)}" font-size="16" font-weight="900" fill="${vtxCol[res[i]]}" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="4">${vtxTag[res[i]]}</text>`;
+        }
         h += `<circle class="vtxHit" data-i="${i}" cx="${p.x}" cy="${p.y}" r="38" fill="rgba(0,0,0,.001)" style="cursor:pointer"/>`;
       }
       if (snapped >= 0 && !dragging) {
         const { p, u, n, other } = frame(snapped, mode);
-        h += renderProtractor(p, u, n, other, card.angTxt[snapped], false);
+        h += renderProtractor(p, u, n, other, label[res[snapped]], false);
       }
       const freeVis = dragging || snapped < 0;
       h += `<g id="tool" transform="translate(${tool.x},${tool.y})" opacity="${freeVis ? .95 : 0}" pointer-events="${freeVis ? 'all' : 'none'}" style="cursor:grab">`;
@@ -1606,7 +1628,7 @@ function rightCheck(key, finalSay) {
 
     const status = () => {
       const n = Object.keys(res).length;
-      hd.innerHTML = [0,1,2].map(i => `<button class="chip ${res[i]?'ok':''}" data-v="${i}">頂點 ${'①②③'[i]}：${res[i] ? card.angTxt[i] + ' ' + label[res[i]] : '點我或拖量角器'}</button>`).join('')
+      hd.innerHTML = [0,1,2].map(i => `<button class="chip ${res[i]?'ok':''}" data-v="${i}">頂點 ${'①②③'[i]}：${res[i] ? label[res[i]] : '點我或拖量角器'}</button>`).join('')
         + `<button class="chip" id="btnFlip" ${snapped<0?'disabled style="opacity:.4"':''}>🔁 換另一條邊對齊 0°</button>`
         + `<button class="chip" id="btnBackTool" ${snapped<0?'disabled style="opacity:.4"':''}>↩ 收回量角器</button>`;
       hd.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => snapToVertex(+b.dataset.v)));
@@ -1661,9 +1683,12 @@ function sortGame(mode) {
           } else {
             sNo(); d.classList.remove('back'); void d.offsetWidth; d.classList.add('back');
             const c = CARDS[k];
+            const angDesc = c.angleType === 'right' ? '有 1 個角等於 90°（直角）、2 個角小於 90°（銳角）'
+                          : c.angleType === 'obtuse' ? '有 1 個角大於 90°（鈍角）、2 個角小於 90°（銳角）'
+                          : '3 個角都小於 90°（都是銳角）';
             const hint = mode === 'side'
               ? `圖卡 ${k} 的邊長是 ${c.sides.map(fmt).join('、')} cm，有 ${c.sideType==='equilateral'?3:c.sideType==='isosceles'?2:0} 條邊一樣長，再想想看！`
-              : `圖卡 ${k} 的三個角是 ${c.angTxt.join('、')}，再比一比直角！`;
+              : `圖卡 ${k} ${angDesc}，再想一想它是哪一種三角形！`;
             ctx.say(`<h2>再想想看</h2><p>${hint}</p>`);
           }
         }
@@ -1984,38 +2009,43 @@ add_(2, 'a-c-angles', `<h2>三種角</h2><p>你剛剛找到的銳角、直角和
   w.innerHTML = `<h3>銳角、直角、鈍角</h3><div class="cards-row" style="--cols:3">${ang(50,'#06b6d4','銳角','比 90° 直角小')}${ang(90,'#7c3aed','直角','剛好 90°，像書本的角')}${ang(130,'#ec4899','鈍角','比 90° 直角大')}</div><div class="facts">三角形的每個角都可以拿 <b>90° 直角</b>來比較：比直角小叫做<b>銳角</b>、剛好 90° 叫做<b>直角</b>、比直角大叫做<b>鈍角</b>。</div>`;
   ctx.stage.append(w); ctx.unlock(); ctx.task('記好了嗎？按「下一步」', true);
 });
-add_(2, 'a-check-D', `<h2>用量角器量量看</h2><p>請把<em>量角器</em>拖到頂點上（或直接點頂點），看看紅色的邊指在幾度？圖卡 <b>D</b> 的 3 個頂點都要量喔！</p>`, rightCheck('D', `<h2>量完了！</h2><p>圖卡 D 的 3 個角分別是 56°、83°、41°，全部都<em>小於 90°</em>，表示 3 個角都是<em>銳角</em>。</p>`));
-add_(2, 'a-q-D', `<h2>想一想</h2><p>根據剛剛量出來的三個角度，回答右邊的問題吧！</p>`, quiz({
-  card: 'D', angles: true,
-  q: '圖卡 D 的 3 個角（56°、83°、41°）都比直角小，它是什麼三角形？',
+add_(2, 'a-check-A', `<h2>量角器量量看：圖卡 A</h2><p>現在我們按照字母順序 <b>A ～ H</b>，用量角器把每張圖卡的 3 個角都跟 <em>90° 直角</em>比一比！請點圖卡 <b>A</b> 的 3 個頂點（或拖動量角器），看看是<em>大於、等於還是小於 90°</em>？</p>`, rightCheck('A', `<h2>圖卡 A 量完了！</h2><p>圖卡 A 的 3 個角全部都<em>小於 90°</em>，表示 3 個角都是<em>銳角</em>。</p>`));
+add_(2, 'a-q-A', `<h2>想一想</h2><p>根據剛剛量出來的結果，回答右邊的問題吧！</p>`, quiz({
+  card: 'A', angleCmp: true,
+  q: '圖卡 A 的 3 個角都「小於 90°」（都是銳角），它是什麼三角形？',
   opts: [['銳角三角形', true], ['直角三角形', false], ['鈍角三角形', false]],
-  explain: '3 個角都是銳角（都小於 90°）的三角形，叫做<b>銳角三角形</b>。'
+  explain: '3 個角都小於 90°（3 個角都是銳角）的三角形，叫做<b>銳角三角形</b>。'
 }));
-add_(2, 'a-check-C', `<h2>換圖卡 C</h2><p>請把<em>量角器</em>移到圖卡 <b>C</b> 的 3 個頂點量量看，找找看有沒有哪個角剛好指在 <em>90°（直角）</em>？</p>`, rightCheck('C', `<h2>找到了！</h2><p>圖卡 C 有一個頂點剛好是 <em>90° 直角</em>，另外 2 個角則是銳角（37°、53°）。</p>`));
-add_(2, 'a-q-C', `<h2>想一想</h2><p>根據剛剛量出來的角度，回答右邊的問題吧！</p>`, quiz({
-  card: 'C', right: true, angles: true,
-  q: '圖卡 C 有 1 個直角（90°）、2 個銳角（37°、53°），它是什麼三角形？',
+add_(2, 'a-check-B', `<h2>接著量：圖卡 B</h2><p>輪到圖卡 <b>B</b> 了！請把<em>量角器</em>移到圖卡 <b>B</b> 的 3 個頂點量量看，看看它的 3 個角是<em>大於、等於還是小於 90°</em>？</p>`, rightCheck('B', `<h2>圖卡 B 量完了！</h2><p>圖卡 B 的 3 個角也都<em>小於 90°（都是銳角）</em>，所以圖卡 B 也是<em>銳角三角形</em>喔！</p>`));
+add_(2, 'a-check-C', `<h2>接著量：圖卡 C</h2><p>換圖卡 <b>C</b>！請把<em>量角器</em>移到圖卡 <b>C</b> 的 3 個頂點量量看，找找看有沒有哪個角<em>等於 90°（直角）</em>？</p>`, rightCheck('C', `<h2>找到了！</h2><p>圖卡 C 有 1 個角<em>等於 90°（直角）</em>，另外 2 個角都<em>小於 90°（銳角）</em>。</p>`));
+add_(2, 'a-q-C', `<h2>想一想</h2><p>根據剛剛量出來的結果，回答右邊的問題吧！</p>`, quiz({
+  card: 'C', right: true, angleCmp: true,
+  q: '圖卡 C 有 1 個角「等於 90°」（直角）、2 個角「小於 90°」（銳角），它是什麼三角形？',
   opts: [['銳角三角形', false], ['直角三角形', true], ['鈍角三角形', false]],
-  explain: '三角形裡面只要有 <b>1 個直角（90°）</b>，就叫做<b>直角三角形</b>。'
+  explain: '三角形裡面只要有 <b>1 個直角（等於 90°）</b>，就叫做<b>直角三角形</b>。'
 }));
-add_(2, 'a-check-E', `<h2>換圖卡 E</h2><p>請把<em>量角器</em>移到圖卡 <b>E</b> 的 3 個頂點量量看，找找看有沒有哪個角<em>超過 90°</em>？</p>`, rightCheck('E', `<h2>發現了！</h2><p>圖卡 E 有一個頂點是 <em>120°</em>，比 90° 直角還要大，是一個<em>鈍角</em>！</p>`));
-add_(2, 'a-q-E', `<h2>想一想</h2><p>根據剛剛量出來的角度，回答右邊的問題吧！</p>`, quiz({
-  card: 'E', angles: true,
-  q: '圖卡 E 有 1 個鈍角（120°）、2 個銳角（22°、38°），它是什麼三角形？',
+add_(2, 'a-check-D', `<h2>接著量：圖卡 D</h2><p>換圖卡 <b>D</b>！請把<em>量角器</em>移到圖卡 <b>D</b> 的 3 個頂點量量看，看看每個角跟 <em>90°</em> 比起來是<em>大於、等於還是小於 90°</em>？</p>`, rightCheck('D', `<h2>圖卡 D 量完了！</h2><p>圖卡 D 的 3 個角全部都<em>小於 90°（都是銳角）</em>，所以圖卡 D 也是<em>銳角三角形</em>！</p>`));
+add_(2, 'a-check-E', `<h2>接著量：圖卡 E</h2><p>換圖卡 <b>E</b>！請把<em>量角器</em>移到圖卡 <b>E</b> 的 3 個頂點量量看，找找看有沒有哪個角<em>大於 90°</em>？</p>`, rightCheck('E', `<h2>發現了！</h2><p>圖卡 E 有 1 個角<em>大於 90°（鈍角）</em>，另外 2 個角都<em>小於 90°（銳角）</em>！</p>`));
+add_(2, 'a-q-E', `<h2>想一想</h2><p>根據剛剛量出來的結果，回答右邊的問題吧！</p>`, quiz({
+  card: 'E', angleCmp: true,
+  q: '圖卡 E 有 1 個角「大於 90°」（鈍角）、2 個角「小於 90°」（銳角），它是什麼三角形？',
   opts: [['銳角三角形', false], ['直角三角形', false], ['鈍角三角形', true]],
   explain: '三角形裡面只要有 <b>1 個鈍角（大於 90°）</b>，就叫做<b>鈍角三角形</b>。'
 }));
-add_(2, 'a-q-max', `<h2>動動腦</h2><p>回想一下剛剛量過的圖卡 E，想想看一個三角形裡面最多能有幾個鈍角？</p>`, quiz({
+add_(2, 'a-check-F', `<h2>接著量：圖卡 F</h2><p>換圖卡 <b>F</b>！請把<em>量角器</em>移到圖卡 <b>F</b> 的 3 個頂點量量看，看看每個角是<em>大於、等於還是小於 90°</em>？</p>`, rightCheck('F', `<h2>圖卡 F 量完了！</h2><p>圖卡 F 有 1 個角<em>等於 90°（直角）</em>、2 個角<em>小於 90°（銳角）</em>，所以它是<em>直角三角形</em>！</p>`));
+add_(2, 'a-check-G', `<h2>接著量：圖卡 G</h2><p>換圖卡 <b>G</b>！請把<em>量角器</em>移到圖卡 <b>G</b> 的 3 個頂點量量看，看看它的 3 個角跟 <em>90°</em> 比起來怎麼樣？</p>`, rightCheck('G', `<h2>圖卡 G 量完了！</h2><p>圖卡 G 的 3 個角全部都<em>小於 90°（都是銳角）</em>，所以它是<em>銳角三角形</em>！</p>`));
+add_(2, 'a-check-H', `<h2>最後一張：圖卡 H</h2><p>最後輪到圖卡 <b>H</b> 了！請把<em>量角器</em>移到圖卡 <b>H</b> 的 3 個頂點量量看，完成 A ～ H 全部圖卡的測量吧！</p>`, rightCheck('H', `<h2>A ～ H 全部量完了！</h2><p>圖卡 H 有 1 個角<em>大於 90°（鈍角）</em>、2 個角<em>小於 90°（銳角）</em>，所以它是<em>鈍角三角形</em>！</p>`));
+add_(2, 'a-q-max', `<h2>動動腦</h2><p>回想一下剛剛量過的圖卡 A ～ H，想想看一個三角形裡面最多能有幾個鈍角？</p>`, quiz({
   q: '一個三角形裡，最多只能有幾個鈍角？',
   opts: [['最多 1 個', true], ['最多 2 個', false], ['可以有 3 個', false]],
   explain: '三角形裡面最多只能有 <b>1 個鈍角</b>（也最多只能有 1 個直角），所以<b>只要看到 1 個鈍角，就能確定它是鈍角三角形</b>！'
 }));
-add_(2, 'a-c-types', `<h2>用角分類</h2><p>用「角的大小」來分類，三角形一樣可以分成 3 種，先看看右邊的整理表吧！</p>`, ctx => {
+add_(2, 'a-c-types', `<h2>用角分類</h2><p>剛剛我們把圖卡 <b>A ～ H</b> 都量過一遍了！用「角的大小」來分類，三角形可以分成 3 種，先看看右邊的整理表吧！</p>`, ctx => {
   const w = document.createElement('div'); w.className = 'concept';
   w.innerHTML = `<h3>以角分類：整理表</h3><div class="summary-list">
-    <div class="summary-row">${cardSVG('D', 120, 88, { pad: 8, sw: 5 })}<div class="s-title" style="color:#1e3a5f">銳角三角形</div><div class="s-desc"><b>3 個角都是銳角</b>（3 個角都小於 90°）</div></div>
-    <div class="summary-row">${cardSVG('C', 120, 88, { pad: 8, sw: 5, right: true })}<div class="s-title" style="color:#1e3a5f">直角三角形</div><div class="s-desc"><b>有 1 個直角（90°）</b>，另外 2 個是銳角</div></div>
-    <div class="summary-row">${cardSVG('E', 120, 88, { pad: 8, sw: 5 })}<div class="s-title" style="color:#1e3a5f">鈍角三角形</div><div class="s-desc"><b>有 1 個鈍角（大於 90°）</b>，另外 2 個是銳角</div></div></div>`;
+    <div class="summary-row">${cardSVG('D', 120, 88, { pad: 8, sw: 5 })}<div class="s-title" style="color:#1e3a5f">銳角三角形</div><div class="s-desc"><b>3 個角都是銳角</b>（都小於 90°）➜ 圖卡 <b>A、B、D、G</b></div></div>
+    <div class="summary-row">${cardSVG('C', 120, 88, { pad: 8, sw: 5, right: true })}<div class="s-title" style="color:#1e3a5f">直角三角形</div><div class="s-desc"><b>有 1 個直角（等於 90°）</b>，另外 2 個是銳角 ➜ 圖卡 <b>C、F</b></div></div>
+    <div class="summary-row">${cardSVG('E', 120, 88, { pad: 8, sw: 5 })}<div class="s-title" style="color:#1e3a5f">鈍角三角形</div><div class="s-desc"><b>有 1 個鈍角（大於 90°）</b>，另外 2 個是銳角 ➜ 圖卡 <b>E、H</b></div></div></div>`;
   ctx.stage.append(w); ctx.unlock(); ctx.task('看懂了就按「下一步」', true);
 });
 add_(2, 'a-sort', `<h2>分類遊戲：以角分類</h2><p>請把上方的 8 張三角形圖卡<em>拖進</em>正確的籃子裡，觀察每個圖卡最大的角是銳角、直角還是鈍角吧！</p>`, sortGame('angle'));
