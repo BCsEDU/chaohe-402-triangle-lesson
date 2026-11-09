@@ -1569,15 +1569,88 @@ function rightCheck(key, finalSay) {
         const lblPt = mapPt(0, rIn * 0.52);
         g += `<text x="${lblPt.x.toFixed(1)}" y="${lblPt.y.toFixed(1)}" font-size="16" font-weight="900" fill="#0369a1" text-anchor="middle" dominant-baseline="central" paint-order="stroke" stroke="#fff" stroke-width="3">量角器（拖我或點頂點）</text>`;
       }
-      // 若已對齊頂點，畫出紅邊指針與「小於 / 等於 / 大於 90°」比較標籤
+      // 若已對齊頂點，畫出紅邊指針與「小於 / 等於 / 大於 90°」比較標籤（自動避開三角形圖卡與量角器）
       if (otherVec) {
-        const tip = { x: p.x + otherVec.x * (R + 18), y: p.y + otherVec.y * (R + 18) };
+        const tip = { x: p.x + otherVec.x * (R + 14), y: p.y + otherVec.y * (R + 14) };
         const onArc = { x: p.x + otherVec.x * R, y: p.y + otherVec.y * R };
         g += `<line x1="${p.x}" y1="${p.y}" x2="${tip.x.toFixed(1)}" y2="${tip.y.toFixed(1)}" stroke="#ef4444" stroke-width="6" stroke-linecap="round"/>`;
         g += `<circle cx="${onArc.x.toFixed(1)}" cy="${onArc.y.toFixed(1)}" r="8" fill="#ef4444" stroke="#fff" stroke-width="2.5"/>`;
-        const rawBadge = { x: p.x + otherVec.x * (R + 44), y: p.y + otherVec.y * (R + 44) };
-        const bx = Math.max(98, Math.min(662, rawBadge.x));
-        const by = Math.max(26, Math.min(444, rawBadge.y));
+
+        const distSeg = (px, py, ax, ay, bx, by) => {
+          const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
+          const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2));
+          return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+        };
+        const ptInTri = (px, py) => {
+          const [a, b, c] = pts;
+          const s1 = (b.x - a.x) * (py - a.y) - (b.y - a.y) * (px - a.x);
+          const s2 = (c.x - b.x) * (py - b.y) - (c.y - b.y) * (px - b.x);
+          const s3 = (a.x - c.x) * (py - c.y) - (a.y - c.y) * (px - c.x);
+          return (s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0);
+        };
+        const boxTriDist = (cx, cy, w, h) => {
+          let minD = 1e9;
+          for (let sx = -0.5; sx <= 0.5; sx += 0.2) {
+            for (let sy = -0.5; sy <= 0.5; sy += 0.5) {
+              const x = cx + sx * w, y = cy + sy * h;
+              if (ptInTri(x, y)) return -100;
+              for (let i = 0; i < 3; i++) {
+                const a = pts[i], b = pts[(i + 1) % 3];
+                minD = Math.min(minD, distSeg(x, y, a.x, a.y, b.x, b.y));
+              }
+            }
+          }
+          for (let i = 0; i < 3; i++) {
+            const a = pts[i], b = pts[(i + 1) % 3];
+            for (let t = 0; t <= 1; t += 0.05) {
+              const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
+              if (Math.abs(x - cx) <= w / 2 + 12 && Math.abs(y - cy) <= h / 2 + 12) return -50;
+            }
+          }
+          return minD;
+        };
+
+        const cosT = otherVec.x * u.x + otherVec.y * u.y;
+        const sinT = otherVec.x * n.x + otherVec.y * n.y;
+        const away = { x: -sinT * u.x + cosT * n.x, y: -sinT * u.y + cosT * n.y };
+        const cands = [];
+        for (const rOff of [28, 42, 56, 70]) {
+          for (const aOff of [40, 60, 80, 100, 120, 0, -50]) {
+            cands.push({
+              cx: p.x + otherVec.x * (R + rOff) + away.x * aOff,
+              cy: p.y + otherVec.y * (R + rOff) + away.y * aOff,
+              pri: Math.abs(aOff) * 0.35 + rOff * 0.5
+            });
+          }
+        }
+        for (let deg = 75; deg <= 175; deg += 15) {
+          const rad = deg * Math.PI / 180;
+          const dir = { x: Math.cos(rad) * u.x + Math.sin(rad) * n.x, y: Math.cos(rad) * u.y + Math.sin(rad) * n.y };
+          cands.push({ cx: p.x + dir.x * (R + 38), cy: p.y + dir.y * (R + 38), pri: 55 });
+        }
+        cands.push({ cx: 120, cy: 36, pri: 180 }, { cx: 640, cy: 36, pri: 180 }, { cx: 120, cy: 385, pri: 180 }, { cx: 640, cy: 385, pri: 180 });
+
+        let best = { cx: 120, cy: 36 }, bestScore = -1e9;
+        for (const c of cands) {
+          if (c.cx < 102 || c.cx > 658 || c.cy < 24 || c.cy > 405) continue;
+          const dp = Math.hypot(c.cx - p.x, c.cy - p.y);
+          const dotN = (c.cx - p.x) * n.x + (c.cy - p.y) * n.y;
+          if (dotN > -18 && dp < R + 18) continue;
+          const td = boxTriDist(c.cx, c.cy, 192, 32);
+          if (td < 18) continue;
+          const score = Math.min(td, 45) * 2 - c.pri - Math.hypot(c.cx - onArc.x, c.cy - onArc.y) * 0.5;
+          if (score > bestScore) { bestScore = score; best = c; }
+        }
+        const bx = best.cx, by = best.cy;
+        const dArc = Math.hypot(bx - onArc.x, by - onArc.y);
+        if (dArc > 28) {
+          const uLine = { x: (bx - onArc.x) / dArc, y: (by - onArc.y) / dArc };
+          const lStart = { x: onArc.x + uLine.x * 10, y: onArc.y + uLine.y * 10 };
+          const lEnd = { x: bx - uLine.x * 58, y: by - uLine.y * 16 };
+          if (Math.hypot(lEnd.x - lStart.x, lEnd.y - lStart.y) > 8) {
+            g += `<line x1="${lStart.x.toFixed(1)}" y1="${lStart.y.toFixed(1)}" x2="${lEnd.x.toFixed(1)}" y2="${lEnd.y.toFixed(1)}" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="4 3"/>`;
+          }
+        }
         g += `<text x="${bx.toFixed(1)}" y="${by.toFixed(1)}" font-size="21" font-weight="900" fill="#dc2626" text-anchor="middle" dominant-baseline="central" paint-order="stroke" stroke="#fff" stroke-width="5">${degTxt}</text>`;
       }
       g += `</g>`;
